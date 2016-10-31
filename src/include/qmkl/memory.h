@@ -18,6 +18,7 @@
 	void unmap_on_cpu(void *ptr_cpu, size_t alloc_size);
 	void* mkl_malloc(size_t alloc_size, int alignment);
 	void mkl_free(void *a_ptr);
+	MKL_UINT get_ptr_gpu_from_ptr_cpu(const MKL_UINT *ptr_cpu);
 
 #define BUS_TO_PHYS(addr) ((addr) & ~0xc0000000)
 

@@ -180,3 +180,14 @@ void mkl_free(void *a_ptr)
 
 	error_fatal("No such allocated memory: %p\n", a_ptr);
 }
+
+MKL_UINT get_ptr_gpu_from_ptr_cpu(const MKL_UINT *ptr_cpu)
+{
+	struct mem_allocated_list *cur;
+
+	for (cur = mem_allocated_list_head; cur != NULL; cur = cur->next)
+		if (cur->ptr_cpu == ptr_cpu)
+			return cur->ptr_gpu;
+
+	error_fatal("No such ptr_cpu: %p\n", ptr_cpu);
+}

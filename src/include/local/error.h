@@ -10,7 +10,7 @@
 #ifndef _LOCAL_ERROR_H
 #define _LOCAL_ERROR_H
 
-	void error_fatal_core(const char *file, const int line, const char *fmt, ...);
+	void error_fatal_core(const char *file, const int line, const char *fmt, ...) __attribute__ ((noreturn));
 
 #define error_fatal(fmt, ...) error_fatal_core(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
