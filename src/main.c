@@ -8,6 +8,7 @@
  */
 
 #include "qmkl.h"
+#include "local/common.h"
 #include "local/called.h"
 #include "local/error.h"
 #include <stdlib.h>
@@ -17,6 +18,10 @@ struct called called = {
 	.mailbox = 0,
 	.memory = 0
 };
+
+static const int unif_len = 1024;
+MKL_UINT *unif_common_cpu = NULL;
+MKL_UINT unif_common_gpu = 0;
 
 void qmkl_init()
 {
@@ -31,12 +36,17 @@ void qmkl_init()
 
 	mailbox_init();
 	memory_init();
+
+	unif_common_cpu = mkl_malloc(unif_len * (32 / 8), 4096);
+	unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
 }
 
 void qmkl_finalize()
 {
 	if (--called.main != 0)
 		return;
+
+	mkl_free(unif_common_cpu);
 
 	memory_finalize();
 	mailbox_finalize();

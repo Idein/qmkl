@@ -19,6 +19,8 @@
 	void* mkl_malloc(size_t alloc_size, int alignment);
 	void mkl_free(void *a_ptr);
 	MKL_UINT get_ptr_gpu_from_ptr_cpu(const MKL_UINT *ptr_cpu);
+	void unif_add_uint(const MKL_UINT u, MKL_UINT **p);
+	void unif_add_float(const float f, MKL_UINT **p);
 
 #define BUS_TO_PHYS(addr) ((addr) & ~0xc0000000)
 
