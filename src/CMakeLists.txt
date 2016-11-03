@@ -32,5 +32,6 @@ install (
 		include/qmkl/mailbox.h
 		include/qmkl/memory.h
 		include/qmkl/launch_qpu_code.h
+		include/qmkl/blas.h
 	DESTINATION include/qmkl
 )
