@@ -18,7 +18,8 @@ struct called called = {
 	.main = 0,
 	.mailbox = 0,
 	.memory = 0,
-	.launch_qpu_code = 0
+	.launch_qpu_code = 0,
+	.blas_gemm = 0
 };
 
 static size_t unif_size = 0, code_size = 0;
@@ -39,6 +40,7 @@ void qmkl_init()
 	mailbox_init();
 	memory_init();
 	launch_qpu_code_init();
+	blas_gemm_init();
 
 	if (unif_size != 0) {
 		unif_common_cpu = mkl_malloc(unif_size, 4096);
@@ -58,6 +60,7 @@ void qmkl_finalize()
 	mkl_free(code_common_cpu);
 	mkl_free(unif_common_cpu);
 
+	blas_gemm_finalize();
 	launch_qpu_code_finalize();
 	memory_finalize();
 	mailbox_finalize();

@@ -11,7 +11,7 @@
 #define _LOCAL_CALLED_H_
 
 	extern struct called {
-		int main, mailbox, memory, launch_qpu_code;
+		int main, mailbox, memory, launch_qpu_code, blas_gemm;
 	} called;
 
 #endif /* _LOCAL_CALLED_H_ */

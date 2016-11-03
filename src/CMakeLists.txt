@@ -1,3 +1,12 @@
+include (../cmake/qasm2m4_dep_on_c.cmake)
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
+
+include_directories (
+	${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+add_subdirectory (blas)
+
 add_library (
 	qmkl SHARED
 	main.c
@@ -5,13 +14,8 @@ add_library (
 	memory.c
 	launch_qpu_code.c
 	error.c
+	$<TARGET_OBJECTS:blas>
 )
-
-include_directories (
-	${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
 
 install (
 	TARGETS qmkl LIBRARY

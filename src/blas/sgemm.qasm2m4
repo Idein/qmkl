@@ -1,0 +1,352 @@
+;#
+;# Copyright (c) 2016 Sugizaki Yukimasa (ysugi@idein.jp)
+;# All rights reserved.
+;#
+;# This software is licensed under a Modified (3-Clause) BSD License.
+;# You should have received a copy of this license along with this
+;# software. If not, contact the copyright holder above.
+;#
+
+;# REG_ASSIGN(MACRO_TO_ASSIGN, CNT_BASENAME, REG_PREFIX)
+define(`REG_ASSIGN',`
+	ifelse(`$#', `3', , `
+		errprint(`$0: Invalid the number of the aguments')
+		m4exit(`1')
+	')
+	ifelse(`$1', `', `
+		errprint(`$0: Empty macro name')
+		m4exit(`1')
+	')
+	ifelse(`$2', `', `
+		errprint(`$0: Empty suffix')
+		m4exit(`1')
+	')
+	ifelse(`$3', `', `
+		errprint(`$0: Empty suffix')
+		m4exit(`1')
+	')
+	ifdef(`$2_CNT', , `define(`$2_CNT', `0')')
+	ifelse(eval($2_CNT >= 32), `1', `
+		errprint(`$0: Register spilled')
+		m4exit(`1')
+	')
+	define(`$1', `$3'$2_CNT)
+	define(`$2_CNT', incr($2_CNT))
+')
+
+;# R_ASSIGN(MACRO_TO_ASSIGN)
+define(`R_ASSIGN', `REG_ASSIGN($1, R, r)')
+
+;# RA_ASSIGN(MACRO_TO_ASSIGN)
+define(`RA_ASSIGN', `REG_ASSIGN($1, RA, ra)')
+
+;# RB_ASSIGN(MACRO_TO_ASSIGN)
+define(`RB_ASSIGN', `REG_ASSIGN($1, RB, rb)')
+
+
+R_ASSIGN(TMP0_R)
+R_ASSIGN(TMP1_R)
+RA_ASSIGN(Pd16_RA)
+RA_ASSIGN(Q_RA)
+RA_ASSIGN(RdNREG_RA)
+RA_ASSIGN(I_RA)
+RA_ASSIGN(J_RA)
+RA_ASSIGN(K_RA)
+RA_ASSIGN(A_BASE_RA)
+RA_ASSIGN(B_BASE_RA)
+RA_ASSIGN(C_BASE_RA)
+RA_ASSIGN(A_CUR_RA)
+RA_ASSIGN(B_CUR_RA)
+RA_ASSIGN(C_CUR_RA)
+RA_ASSIGN(A_CUR_BACK_I_RA)
+RA_ASSIGN(C_CUR_BACK_I_RA)
+RA_ASSIGN(B_CUR_BACK_J_RA)
+RA_ASSIGN(C_CUR_BACK_J_RA)
+RB_ASSIGN(A_STRIDE_K_RB)
+RB_ASSIGN(B_STRIDE_K_RB)
+RB_ASSIGN(B_STRIDE_J_RB)
+RB_ASSIGN(C_STRIDE_J_RB)
+RB_ASSIGN(A_STRIDE_I_RB)
+RB_ASSIGN(C_STRIDE_I_RB)
+RB_ASSIGN(ALPHA_RB)
+RB_ASSIGN(BETA_RB)
+RA_ASSIGN(RESULT_0_RA)
+RA_ASSIGN(RESULT_1_RA)
+RA_ASSIGN(RESULT_2_RA)
+RA_ASSIGN(RESULT_3_RA)
+RA_ASSIGN(RESULT_4_RA)
+RA_ASSIGN(RESULT_5_RA)
+RA_ASSIGN(RESULT_6_RA)
+RA_ASSIGN(RESULT_7_RA)
+RA_ASSIGN(RESULT_8_RA)
+RA_ASSIGN(RESULT_9_RA)
+RA_ASSIGN(RESULT_10_RA)
+RA_ASSIGN(RESULT_11_RA)
+RA_ASSIGN(RESULT_12_RA)
+RA_ASSIGN(RESULT_13_RA)
+RA_ASSIGN(RESULT_14_RA)
+RA_ASSIGN(RESULT_15_RA)
+
+
+define(`NREG', `16')
+
+changequote(`[', `]')
+
+; Load P, Q and R
+alu cond_add=al op_add=or waddr_add=Pd16_RA raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=Q_RA raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=RdNREG_RA raddr_a=uniform_read add_a=ra add_b=ra
+
+; Load alpha and beta
+alu cond_add=al op_add=or waddr_add=ALPHA_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=BETA_RB  ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+
+; Load A, B and C
+alu cond_add=al op_add=or waddr_add=A_BASE_RA raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=B_BASE_RA raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=C_BASE_RA raddr_a=uniform_read add_a=ra add_b=ra
+
+; Load strides
+alu cond_add=al op_add=or waddr_add=A_STRIDE_K_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=B_STRIDE_K_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=B_STRIDE_J_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=C_STRIDE_J_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=A_STRIDE_I_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=C_STRIDE_I_RB ws=1 raddr_a=uniform_read add_a=ra add_b=ra
+
+
+; A_CUR_RA = A_BASE_RA + element_number * Q_RA * (32 / 8) = A_BASE_RA + element_number * Q_RA * 4
+alu cond_add=al op_add=shl waddr_add=TMP0_R raddr_a=element_number sig=simm simm=2 add_a=ra add_b=rb
+alu cond_mul=al op_mul=mul24 waddr_mul=TMP0_R raddr_a=Q_RA mul_a=ra mul_b=TMP0_R
+alu cond_add=al op_add=add waddr_add=A_CUR_RA raddr_a=A_BASE_RA add_a=ra add_b=TMP0_R
+
+; B_CUR_RA = B_BASE_RA
+alu cond_add=al op_add=or waddr_add=B_CUR_RA raddr_a=B_BASE_RA add_a=ra add_b=ra
+
+; C_CUR_RA = C_BASE_RA
+alu cond_add=al op_add=or waddr_add=C_CUR_RA raddr_a=C_BASE_RA add_a=ra add_b=ra
+
+
+; I_RA = P / 16 - 1
+alu cond_add=al waddr_add=I_RA op_add=sub raddr_a=Pd16_RA sig=simm simm=1 add_a=ra add_b=rb
+
+:loop-i ; (P / 16 - 1) to 0
+
+	; A_CUR_BACK_I_RA = A_CUR_RA
+	alu cond_add=al op_add=or waddr_add=A_CUR_BACK_I_RA raddr_a=A_CUR_RA add_a=ra add_b=ra
+	; C_CUR_BACK_I_RA = C_CUR_RA
+	alu cond_add=al op_add=or waddr_add=C_CUR_BACK_I_RA raddr_a=C_CUR_RA add_a=ra add_b=ra
+	; B_CUR_RA = B_BASE_RA
+	alu cond_add=al op_add=or waddr_add=B_CUR_RA raddr_a=B_BASE_RA add_a=ra add_b=ra
+
+
+	; J_RA = RdNREG_RA - 1
+	alu cond_add=al waddr_add=J_RA op_add=sub raddr_a=RdNREG_RA sig=simm simm=1 add_a=ra add_b=rb
+
+	:loop-j ; (R / NREG - 1) to 0
+
+		; B_CUR_BACK_J_RA = B_CUR_RA
+		alu cond_add=al op_add=or waddr_add=B_CUR_BACK_J_RA raddr_a=B_CUR_RA add_a=ra add_b=ra
+		; C_CUR_BACK_J_RA = C_CUR_RA
+		alu cond_add=al op_add=or waddr_add=C_CUR_BACK_J_RA raddr_a=C_CUR_RA add_a=ra add_b=ra
+		; A_CUR_RA = A_CUR_BACK_I_RA
+		alu cond_add=al op_add=or waddr_add=A_CUR_RA raddr_a=A_CUR_BACK_I_RA add_a=ra add_b=ra
+
+		; Initialize RESULTs
+		li cond_add=al waddr_add=RESULT_0_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_1_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_2_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_3_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_4_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_5_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_6_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_7_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_8_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_9_RA  imm=`0`
+		li cond_add=al waddr_add=RESULT_10_RA imm=`0`
+		li cond_add=al waddr_add=RESULT_11_RA imm=`0`
+		li cond_add=al waddr_add=RESULT_12_RA imm=`0`
+		li cond_add=al waddr_add=RESULT_13_RA imm=`0`
+		li cond_add=al waddr_add=RESULT_14_RA imm=`0`
+		li cond_add=al waddr_add=RESULT_15_RA imm=`0`
+
+
+		; K_RA = Q_RA - 1
+		alu cond_add=al waddr_add=K_RA op_add=sub raddr_a=Q_RA sig=simm simm=1 add_a=ra add_b=rb
+
+		:loop-k ; (Q - 1) to 0
+
+			; uniforms_address = B_CUR_RA
+			alu cond_add=al op_add=or waddr_add=uniforms_address raddr_a=B_CUR_RA add_a=ra add_b=ra
+
+			; tmu0s = A_CUR_RA
+			alu cond_add=al op_add=or waddr_add=tmu0s raddr_a=A_CUR_RA add_a=ra add_b=ra
+			; r4 = tmu0
+			alu sig=ldtmu0
+
+			alu             cond_mul=al                        waddr_mul=TMP0_R             op_mul=fmul                      raddr_b=uniform_read                       mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_0_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_0_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_1_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_1_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_2_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_2_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_3_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_3_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_4_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_4_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_5_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_5_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_6_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_6_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_7_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_7_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_8_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_8_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_9_RA  waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_9_RA  raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_10_RA waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_10_RA raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_11_RA waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_11_RA raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_12_RA waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_12_RA raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_13_RA waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_13_RA raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al cond_mul=al waddr_add=RESULT_14_RA waddr_mul=TMP0_R op_add=fadd op_mul=fmul raddr_a=RESULT_14_RA raddr_b=uniform_read add_a=ra add_b=TMP0_R mul_a=r4 mul_b=rb
+			alu cond_add=al             waddr_add=RESULT_15_RA                  op_add=fadd             raddr_a=RESULT_15_RA                      add_a=ra add_b=TMP0_R
+
+			; Loop if K_RA is not 0
+			alu sf=1 cond_add=al op_add=add raddr_a=K_RA add_a=ra add_b=ra
+			bra cond_br=anyzc rel=1 imm=`:loop-k`
+			; 3 delay slots {
+				; A_CUR_RA += A_STRIDE_K_RB
+				alu cond_add=al op_add=add waddr_add=A_CUR_RA raddr_a=A_CUR_RA raddr_b=A_STRIDE_K_RB add_a=ra add_b=rb
+
+				; B_CUR_RA += B_STRIDE_K_RB
+				alu cond_add=al op_add=add waddr_add=B_CUR_RA raddr_a=B_CUR_RA raddr_b=B_STRIDE_K_RB add_a=ra add_b=rb
+
+				; K_RA = K_RA - 1
+				alu cond_add=al op_add=sub waddr_add=K_RA raddr_a=K_RA sig=simm simm=`1` add_a=ra add_b=rb
+			; }
+
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_0_RA  ws=1 raddr_a=RESULT_0_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_1_RA  ws=1 raddr_a=RESULT_1_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_2_RA  ws=1 raddr_a=RESULT_2_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_3_RA  ws=1 raddr_a=RESULT_3_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_4_RA  ws=1 raddr_a=RESULT_4_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_5_RA  ws=1 raddr_a=RESULT_5_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_6_RA  ws=1 raddr_a=RESULT_6_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_7_RA  ws=1 raddr_a=RESULT_7_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_8_RA  ws=1 raddr_a=RESULT_8_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_9_RA  ws=1 raddr_a=RESULT_9_RA  raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_10_RA ws=1 raddr_a=RESULT_10_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_11_RA ws=1 raddr_a=RESULT_11_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_12_RA ws=1 raddr_a=RESULT_12_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_13_RA ws=1 raddr_a=RESULT_13_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_14_RA ws=1 raddr_a=RESULT_14_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+		alu cond_mul=al op_mul=fmul waddr_mul=RESULT_15_RA ws=1 raddr_a=RESULT_15_RA raddr_b=ALPHA_RB mul_a=ra mul_b=rb
+
+		;                                                + DMA load setup
+		;                                                | + width = 32bit
+		;                                                | |   + mpitch: Use the extend setup
+		;                                                | |   |    + rowlen = 16
+		;                                                | |   |    |    + nrows = 16
+		;                                                | |   |    |    |    + vpitch = 1
+		;                                                | |   |    |    |    |    + 0:horiz 1:vert
+		li cond_add=al waddr_add=vpmvcd_rd_setup imm=`0b_1_000_0000_0000_0000_0001_0__0_000000_0000`
+
+		;                                       + DMA load mpitch setup
+		li cond_add=al waddr_add=TMP0_R imm=`0b_1001_000000000000000_0000000000000`
+		; mpitch = R * (32 / 8) = RdNREG_RA * 64 = RdNREG_RA << 6
+		alu cond_add=al op_add=shl waddr_add=TMP1_R raddr_a=RdNREG_RA sig=simm simm=6 add_a=ra add_b=rb
+		alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup add_a=TMP0_R add_b=TMP1_R
+
+		; vpm_ld_addr = C_CUR_RA
+		alu cond_add=al op_add=or waddr_add=vpm_ld_addr raddr_a=C_CUR_RA add_a=ra add_b=ra
+
+		; Read vpm_ld_wait
+		alu cond_add=al op_add=or raddr_a=vpm_ld_wait add_a=ra add_b=ra
+
+		;                                                + VPM read setup
+		;                                                |         + num = 16
+		;                                                |         |       + stride = 1
+		;                                                |         |       |      + 0:vert 1:horiz
+		;                                                |         |       |      |   + size = 32bit
+		li cond_add=al waddr_add=vpmvcd_rd_setup imm=`0b_00_000000_0000_00_000001_0_0_10__00_00_0000`
+
+		;                                                + VPM write setup
+		;                                                |               + stride = 1
+		;                                                |               |      + 0:vert 1:horiz
+		;                                                |               |      |   + size = 32bit
+		;                                                |               |      |   |      + addr_y = 0
+		;                                                |               |      |   |      |  + addr_x = 0
+		li cond_mul=al waddr_mul=vpmvcd_wr_setup imm=`0b_00_000000000000_000001_0_0_10__00_00_0000`
+
+		; TMP1_R = BETA_RB
+		alu cond_add=al op_add=or waddr_add=TMP1_R raddr_b=BETA_RB add_a=rb add_b=rb
+
+		alu             cond_mul=al             op_mul=fmul                     waddr_mul=TMP0_R                      raddr_b=vpm_read                       mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_0_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_1_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_2_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_3_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_4_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_5_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_6_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_7_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_8_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_9_RA  raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_10_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_11_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_12_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_13_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_14_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
+		alu cond_add=al             op_add=fadd             waddr_add=vpm_write                  raddr_a=RESULT_15_RA                  add_a=ra add_b=TMP0_R
+
+		;                                                + DMA store setup
+		;                                                |  + units = 16
+		;                                                |  |       + depth = 16
+		;                                                |  |       |         + 0:vert 1:horiz
+		;                                                |  |       |         |  + vpmbase_y = 0
+		;                                                |  |       |         |  |       + vpmbase_x = 0
+		;                                                |  |       |         |  |       |     + width = 32bit
+		li cond_mul=al waddr_mul=vpmvcd_wr_setup imm=`0b_10_0010000_0010000_0_1__0000000_0000__000`
+
+		;                                       + DMA store stride setup
+		;                                       |                + blockmode = 0
+		li cond_mul=al waddr_mul=TMP0_R imm=`0b_11_0000000000000_0_000_0000000000000`
+		; stride = R * (32 / 8) - 16 * (32 / 8) = RdNREG_RA * 64 - 64 = (RdNREG_RA - 1) << 6
+		alu cond_add=al op_add=sub waddr_add=TMP1_R raddr_a=RdNREG_RA sig=simm simm=1 add_a=ra add_b=rb
+		alu cond_add=al op_add=shl waddr_add=TMP1_R sig=simm simm=6 add_a=TMP1_R add_b=rb
+		alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 add_a=TMP0_R add_b=TMP1_R
+
+		; vpm_st_addr = C_CUR_RA
+		alu cond_add=al op_add=or waddr_add=vpm_st_addr ws=1 raddr_a=C_CUR_RA add_a=ra add_b=ra
+
+		; Read vpm_st_wait
+		alu cond_add=al op_add=or raddr_b=vpm_st_wait add_a=rb add_b=rb
+
+		; Loop if J_RA is not 0
+		alu sf=1 cond_add=al op_add=add raddr_a=J_RA add_a=ra add_b=ra
+		bra cond_br=anyzc rel=1 imm=`:loop-j`
+		; 3 delay slots {
+			; B_CUR_RA = B_CUR_BACK_J_RA + B_STRIDE_J_RB
+			alu cond_add=al op_add=add waddr_add=B_CUR_RA raddr_a=B_CUR_BACK_J_RA raddr_b=B_STRIDE_J_RB add_a=ra add_b=rb
+
+			; C_CUR_RA = C_CUR_BACK_J_RA + C_STRIDE_J_RB
+			alu cond_add=al op_add=add waddr_add=C_CUR_RA raddr_a=C_CUR_BACK_J_RA raddr_b=C_STRIDE_J_RB add_a=ra add_b=rb
+
+			; J_RA = J_RA - 1
+			alu sf=1 cond_add=al op_add=sub waddr_add=J_RA raddr_a=J_RA sig=simm simm=`1` add_a=ra add_b=rb
+		; }
+
+	; Loop if I_RA is not 0
+	alu sf=1 cond_add=al op_add=add raddr_a=I_RA add_a=ra add_b=ra
+	bra cond_br=anyzc rel=1 imm=`:loop-i`
+	; delay slots {
+		; A_CUR_RA = A_CUR_BACK_I_RA + A_STRIDE_I_RB
+		alu cond_add=al op_add=add waddr_add=A_CUR_RA raddr_a=A_CUR_BACK_I_RA raddr_b=A_STRIDE_I_RB add_a=ra add_b=rb
+
+		; C_CUR_RA = C_CUR_BACK_I_RA + C_STRIDE_I_RB
+		alu cond_add=al op_add=add waddr_add=C_CUR_RA raddr_a=C_CUR_BACK_I_RA raddr_b=C_STRIDE_I_RB add_a=ra add_b=rb
+
+		; I_RA = I_RA - 1
+		alu sf=1 cond_add=al op_add=sub waddr_add=I_RA raddr_a=I_RA sig=simm simm=`1` add_a=ra add_b=rb
+	; }
+
+li cond_add=al waddr_add=host_int imm=`1`
+alu sig=pe
+alu
+alu
+
+; Stats:
+;  [R_CNT] = R_CNT
+;  [RA_CNT] = RA_CNT
+;  [RB_CNT] = RB_CNT
