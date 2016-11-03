@@ -21,9 +21,9 @@ struct called called = {
 	.launch_qpu_code = 0
 };
 
-static const int unif_len = 1024;
-MKL_UINT *unif_common_cpu = NULL;
-MKL_UINT unif_common_gpu = 0;
+static size_t unif_size = 0, code_size = 0;
+MKL_UINT *unif_common_cpu = NULL, *code_common_cpu = NULL;
+MKL_UINT unif_common_gpu = 0, code_common_gpu = 0;
 
 void qmkl_init()
 {
@@ -40,8 +40,14 @@ void qmkl_init()
 	memory_init();
 	launch_qpu_code_init();
 
-	unif_common_cpu = mkl_malloc(unif_len * (32 / 8), 4096);
-	unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
+	if (unif_size != 0) {
+		unif_common_cpu = mkl_malloc(unif_size, 4096);
+		unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
+	}
+	if (code_size != 0) {
+		code_common_cpu = mkl_malloc(code_size, 4096);
+		code_common_gpu = get_ptr_gpu_from_ptr_cpu(code_common_cpu);
+	}
 }
 
 void qmkl_finalize()
@@ -49,9 +55,18 @@ void qmkl_finalize()
 	if (--called.main != 0)
 		return;
 
+	mkl_free(code_common_cpu);
 	mkl_free(unif_common_cpu);
 
 	launch_qpu_code_finalize();
 	memory_finalize();
 	mailbox_finalize();
+}
+
+void unif_and_code_size_req(const size_t unif_size_req, const size_t code_size_req)
+{
+	if (unif_size_req > unif_size)
+		unif_size = unif_size_req;
+	if (code_size_req > code_size)
+		code_size = code_size_req;
 }
