@@ -10,9 +10,15 @@ except that you need to call initialization function `qmkl_init` at first.
 
 ```
 $ git clone https://github.com/Terminus-IMRC/qmkl.git
-$ mkdir -p qmkl/build/
-$ cd qmkl/build/
-$ cmake ..
+$ cd qmkl/
+$ cmake .
 $ make
 $ sudo make install
+```
+
+
+## Running tests
+
+```
+$ sudo test/sgemm
 ```
