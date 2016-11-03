@@ -153,3 +153,46 @@ uint32_t mailbox_mem_unlock(int fd_mb, uint32_t ptr_gpu)
 
 	return p[5];
 }
+
+uint32_t mailbox_qpu_execute(int fd_mb, uint32_t num_qpus, uint32_t control, uint32_t noflush, uint32_t timeout)
+{
+	int i = 0;
+	uint32_t p[16];
+
+	p[i++] = 0;
+	p[i++] = VCMSG_PROCESS_REQUEST;
+	p[i++] = VCMSG_SET_EXECUTE_QPU;
+	p[i++] = 4 * 4;
+	p[i++] = 4 * 4;
+	p[i++] = num_qpus;
+	p[i++] = control;
+	p[i++] = noflush;
+	p[i++] = timeout;
+	p[i++] = VCMSG_PROPERTY_END;
+	p[0] = i * sizeof(p[0]);
+
+	mailbox_property(fd_mb, p);
+	check_error(p);
+
+	return p[5];
+}
+
+uint32_t mailbox_qpu_enable(int fd_mb, uint32_t enable)
+{
+	int i = 0;
+	uint32_t p[16];
+
+	p[i++] = 0;
+	p[i++] = VCMSG_PROCESS_REQUEST;
+	p[i++] = VCMSG_SET_ENABLE_QPU;
+	p[i++] = 1 * 4;
+	p[i++] = 1 * 4;
+	p[i++] = enable;
+	p[i++] = VCMSG_PROPERTY_END;
+	p[0] = i * sizeof(p[0]);
+
+	mailbox_property(fd_mb, p);
+	check_error(p);
+
+	return p[5];
+}

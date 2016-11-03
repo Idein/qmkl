@@ -21,6 +21,8 @@
 	uint32_t mailbox_mem_free(int fd_mb, uint32_t handle);
 	uint32_t mailbox_mem_lock(int fd_mb, uint32_t handle);
 	uint32_t mailbox_mem_unlock(int fd_mb, uint32_t ptr_gpu);
+	uint32_t mailbox_qpu_execute(int fd_mb, uint32_t num_qpus, uint32_t control, uint32_t noflush, uint32_t timeout);
+	uint32_t mailbox_qpu_enable(int fd_mb, uint32_t enable);
 
 #define MEM_FLAG_DISCARDABLE      (1 << 0)
 #define MEM_FLAG_NORMAL           (0 << 2)

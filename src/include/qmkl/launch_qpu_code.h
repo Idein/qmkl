@@ -7,11 +7,13 @@
  * software. If not, contact the copyright holder above.
  */
 
-#ifndef _LOCAL_CALLED_H_
-#define _LOCAL_CALLED_H_
+#ifndef _LAUNCH_QPU_CODE_H_
+#define _LAUNCH_QPU_CODE_H_
 
-	extern struct called {
-		int main, mailbox, memory, launch_qpu_code;
-	} called;
+#include <stdint.h>
 
-#endif /* _LOCAL_CALLED_H_ */
+	void launch_qpu_code_init();
+	void launch_qpu_code_finalize();
+	void launch_qpu_code_mailbox(uint32_t num_qpus, ...);
+
+#endif /* _LAUNCH_QPU_CODE_H_ */

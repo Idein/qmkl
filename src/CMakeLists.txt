@@ -3,6 +3,7 @@ add_library (
 	main.c
 	mailbox.c
 	memory.c
+	launch_qpu_code.c
 	error.c
 )
 
@@ -26,5 +27,6 @@ install (
 		include/qmkl/types.h
 		include/qmkl/mailbox.h
 		include/qmkl/memory.h
+		include/qmkl/launch_qpu_code.h
 	DESTINATION include/qmkl
 )

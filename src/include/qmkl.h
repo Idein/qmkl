@@ -16,5 +16,6 @@
 #include "qmkl/types.h"
 #include "qmkl/mailbox.h"
 #include "qmkl/memory.h"
+#include "qmkl/launch_qpu_code.h"
 
 #endif /* _QMKL_H_ */
