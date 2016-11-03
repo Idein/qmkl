@@ -27,6 +27,7 @@ void launch_qpu_code_init()
 	memory_init();
 	mailbox_init();
 	fd_mb = mailbox_open();
+	mailbox_qpu_enable(fd_mb, 1);
 	ml_control_cpu = mkl_malloc(MAX_QPUS * 2 * (32 / 8), 4096);
 	ml_control_gpu = get_ptr_gpu_from_ptr_cpu(ml_control_cpu);
 }
@@ -37,6 +38,7 @@ void launch_qpu_code_finalize()
 		return;
 
 	mkl_free(ml_control_cpu);
+	mailbox_qpu_enable(fd_mb, 0);
 	mailbox_close(fd_mb);
 	mailbox_finalize();
 	memory_finalize();
