@@ -14,6 +14,6 @@
 
 	void launch_qpu_code_init();
 	void launch_qpu_code_finalize();
-	void launch_qpu_code_mailbox(uint32_t num_qpus, ...);
+	void launch_qpu_code_mailbox(uint32_t num_qpus, uint32_t noflush, uint32_t timeout, ...);
 
 #endif /* _LAUNCH_QPU_CODE_H_ */

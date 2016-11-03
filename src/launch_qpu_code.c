@@ -44,22 +44,19 @@ void launch_qpu_code_finalize()
 	memory_finalize();
 }
 
-void launch_qpu_code_mailbox(uint32_t num_qpus, ...)
+void launch_qpu_code_mailbox(uint32_t num_qpus, uint32_t noflush, uint32_t timeout, ...)
 {
 	unsigned i;
-	uint32_t noflush, timeout;
 	va_list ap;
 
 	if (num_qpus > MAX_QPUS)
 		error_fatal("Too many QPUs: %d (max:%d)\n", num_qpus, MAX_QPUS);
 
-	va_start(ap, num_qpus);
+	va_start(ap, timeout);
 	for (i = 0; i < num_qpus; i ++) {
 		ml_control_cpu[i * 2 + 0] = va_arg(ap, uint32_t); /* unif addr for QPU i */
 		ml_control_cpu[i * 2 + 1] = va_arg(ap, uint32_t); /* prog addr for QPU i */
 	}
-	noflush = va_arg(ap, uint32_t);
-	timeout = va_arg(ap, uint32_t);
 	va_end(ap);
 
 	mailbox_qpu_execute(fd_mb, num_qpus, ml_control_gpu, noflush, timeout);
