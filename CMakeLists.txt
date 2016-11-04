@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 3.0)
 
 project (qmkl)
 
+find_package(OpenMP)
+
 find_program (QASM2 qasm2)
 if (NOT QASM2)
 	message (FATAL_ERROR "qasm2 not found. Install it from https://github.com/Terminus-IMRC/qpu-assembler2")

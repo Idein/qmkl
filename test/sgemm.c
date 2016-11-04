@@ -13,6 +13,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
+#include <omp.h>
 
 static void mf_srandom()
 {
@@ -90,6 +91,7 @@ static void mf_sgemm(float *A, float *B, float *C, const int P, const int Q, con
 {
 	int i, j, k;
 
+#pragma omp parallel for private(i, j, k)
 	for (i = 0; i < P; i ++) {
 		for (j = 0; j < R; j ++) {
 			float sum = 0.0;
@@ -148,7 +150,7 @@ int main()
 	gettimeofday(&end, NULL);
 	printf("%g [s], %g [flop/s]\n", (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6, (2 * P * Q * R + 3 * P * R) / ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6));
 
-	printf("CPU: "); fflush(stdout);
+	printf("CPU (%d threads): ", omp_get_max_threads()); fflush(stdout);
 	gettimeofday(&start, NULL);
 	mf_sgemm(A, B, C_ref, P, Q, R, ALPHA, BETA);
 	gettimeofday(&end, NULL);

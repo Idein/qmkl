@@ -22,6 +22,7 @@ target_link_libraries (
 	qmkl
 )
 
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 add_executable (
 	sgemm
 	sgemm.c
