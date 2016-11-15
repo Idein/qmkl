@@ -10,6 +10,7 @@
 #include "qmkl.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
@@ -76,127 +77,117 @@ static void check_error(uint32_t p[])
 	}
 }
 
+void rpi_firmware_property(const int fd, const uint32_t tag, void *tag_data, const size_t buf_size)
+{
+	int i;
+	uint32_t *p = NULL;
+
+	p = malloc((5 + buf_size / 4 + 1) * sizeof(*p));
+	if (p == NULL)
+		error_fatal("Failed to allocate memory for RPi firmware\n");
+
+	i = 0;
+	p[i++] = (5 + buf_size / 4 + 1) * sizeof(*p);
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = tag; // tag
+	p[i++] = buf_size; // buf_size
+	p[i++] = buf_size; // req_resp_size
+	memcpy(p + i, tag_data, buf_size);
+	p[i + buf_size / 4] = RPI_FIRMWARE_PROPERTY_END;;
+
+	mailbox_property(fd, p);
+	check_error(p);
+	memcpy(tag_data, p + i, buf_size);
+	free(p);
+}
+
 uint32_t mailbox_mem_alloc(int fd_mb, uint32_t size, uint32_t align, uint32_t flags)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t size, ptr_gpu;
+		};
+		uint32_t align, flags;
+	} gpu = {
+		.size = size,
+		.align = align,
+		.flags = flags
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_ALLOCATE_MEMORY;
-	p[i++] = 3 * 4;
-	p[i++] = 3 * 4;
-	p[i++] = size;
-	p[i++] = align;
-	p[i++] = flags;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_ALLOCATE_MEMORY, &gpu, sizeof(gpu));
+	return gpu.ptr_gpu;
 }
 
 uint32_t mailbox_mem_free(int fd_mb, uint32_t handle)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t handle, ret;
+		};
+	} gpu = {
+		.handle = handle
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_RELEASE_MEMORY;
-	p[i++] = 1 * 4;
-	p[i++] = 1 * 4;
-	p[i++] = handle;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_RELEASE_MEMORY, &gpu, sizeof(gpu));
+	return gpu.ret;
 }
 
 uint32_t mailbox_mem_lock(int fd_mb, uint32_t handle)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t handle, ptr_cpu;
+		};
+	} gpu = {
+		.handle = handle
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_LOCK_MEMORY;
-	p[i++] = 1 * 4;
-	p[i++] = 1 * 4;
-	p[i++] = handle;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_LOCK_MEMORY, &gpu, sizeof(gpu));
+	return gpu.ptr_cpu;
 }
 
 uint32_t mailbox_mem_unlock(int fd_mb, uint32_t ptr_gpu)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t ptr_gpu, ret;
+		};
+	} gpu = {
+		.ptr_gpu = ptr_gpu
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_UNLOCK_MEMORY;
-	p[i++] = 1 * 4;
-	p[i++] = 1 * 4;
-	p[i++] = ptr_gpu;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_UNLOCK_MEMORY, &gpu, sizeof(gpu));
+	return gpu.ret;
 }
 
 uint32_t mailbox_qpu_execute(int fd_mb, uint32_t num_qpus, uint32_t control, uint32_t noflush, uint32_t timeout)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t num_qpus, ret;
+		};
+		uint32_t control, noflush, timeout;
+	} gpu = {
+		.num_qpus = num_qpus,
+		.control = control,
+		.noflush = noflush,
+		.timeout = timeout
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_EXECUTE_QPU;
-	p[i++] = 4 * 4;
-	p[i++] = 4 * 4;
-	p[i++] = num_qpus;
-	p[i++] = control;
-	p[i++] = noflush;
-	p[i++] = timeout;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_EXECUTE_QPU, &gpu, sizeof(gpu));
+	return gpu.ret;
 }
 
 uint32_t mailbox_qpu_enable(int fd_mb, uint32_t enable)
 {
-	int i = 0;
-	uint32_t p[16];
+	struct {
+		union {
+			uint32_t enable, ret;
+		};
+	} gpu = {
+		.enable = enable
+	};
 
-	p[i++] = 0;
-	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
-	p[i++] = RPI_FIRMWARE_SET_ENABLE_QPU;
-	p[i++] = 1 * 4;
-	p[i++] = 1 * 4;
-	p[i++] = enable;
-	p[i++] = RPI_FIRMWARE_PROPERTY_END;
-	p[0] = i * sizeof(p[0]);
-
-	mailbox_property(fd_mb, p);
-	check_error(p);
-
-	return p[5];
+	rpi_firmware_property(fd_mb, RPI_FIRMWARE_SET_ENABLE_QPU, &gpu, sizeof(gpu));
+	return gpu.ret;
 }
