@@ -11,6 +11,7 @@
 #define _QMKL_MAILBOX_H_
 
 #include <stdint.h>
+#include <sys/types.h>
 
 	void mailbox_init();
 	void mailbox_finalize();
