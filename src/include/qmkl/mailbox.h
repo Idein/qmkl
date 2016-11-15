@@ -20,8 +20,8 @@
 	void mailbox_property(int fd_mb, void *buf);
 	void rpi_firmware_property(const int fd, const uint32_t tag, void *tag_data, const size_t buf_size);
 	uint32_t mailbox_mem_alloc(int fd_mb, uint32_t size, uint32_t align, uint32_t flags);
-	uint32_t mailbox_mem_free(int fd_mb, uint32_t handle);
-	uint32_t mailbox_mem_lock(int fd_mb, uint32_t handle);
+	uint32_t mailbox_mem_free(int fd_mb, uint32_t ptr_gpu);
+	uint32_t mailbox_mem_lock(int fd_mb, uint32_t ptr_gpu);
 	uint32_t mailbox_mem_unlock(int fd_mb, uint32_t ptr_gpu);
 	uint32_t mailbox_qpu_execute(int fd_mb, uint32_t num_qpus, uint32_t control, uint32_t noflush, uint32_t timeout);
 	uint32_t mailbox_qpu_enable(int fd_mb, uint32_t enable);

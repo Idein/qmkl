@@ -118,28 +118,28 @@ uint32_t mailbox_mem_alloc(int fd_mb, uint32_t size, uint32_t align, uint32_t fl
 	return gpu.ptr_gpu;
 }
 
-uint32_t mailbox_mem_free(int fd_mb, uint32_t handle)
+uint32_t mailbox_mem_free(int fd_mb, uint32_t ptr_gpu)
 {
 	struct {
 		union {
-			uint32_t handle, ret;
+			uint32_t ptr_gpu, ret;
 		};
 	} gpu = {
-		.handle = handle
+		.ptr_gpu = ptr_gpu
 	};
 
 	rpi_firmware_property(fd_mb, RPI_FIRMWARE_RELEASE_MEMORY, &gpu, sizeof(gpu));
 	return gpu.ret;
 }
 
-uint32_t mailbox_mem_lock(int fd_mb, uint32_t handle)
+uint32_t mailbox_mem_lock(int fd_mb, uint32_t ptr_gpu)
 {
 	struct {
 		union {
-			uint32_t handle, ptr_cpu;
+			uint32_t ptr_gpu, ptr_cpu;
 		};
 	} gpu = {
-		.handle = handle
+		.ptr_gpu = ptr_gpu
 	};
 
 	rpi_firmware_property(fd_mb, RPI_FIRMWARE_LOCK_MEMORY, &gpu, sizeof(gpu));
