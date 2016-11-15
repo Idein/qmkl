@@ -42,6 +42,15 @@ void qmkl_init()
 	launch_qpu_code_init();
 	blas_gemm_init();
 
+	if (called.mailbox <= 0)
+		error_fatal("called.mailbox is 0 or negative: %d\n", called.mailbox);
+	if (called.memory <= 0)
+		error_fatal("called.memory is 0 or negative: %d\n", called.memory);
+	if (called.launch_qpu_code <= 0)
+		error_fatal("called.launch_qpu_code is 0 or negative: %d\n", called.launch_qpu_code);
+	if (called.blas_gemm <= 0)
+		error_fatal("called.blas_gemm is 0 or negative: %d\n", called.blas_gemm);
+
 	if (unif_size != 0) {
 		unif_common_cpu = mkl_malloc(unif_size, 4096);
 		unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
@@ -64,6 +73,15 @@ void qmkl_finalize()
 	launch_qpu_code_finalize();
 	memory_finalize();
 	mailbox_finalize();
+
+	if (called.blas_gemm != 0)
+		error_fatal("called.blas_gemm is not 0: %d\n", called.blas_gemm);
+	if (called.launch_qpu_code != 0)
+		error_fatal("called.launch_qpu_code is not 0: %d\n", called.launch_qpu_code);
+	if (called.memory != 0)
+		error_fatal("called.memory is not 0: %d\n", called.memory);
+	if (called.mailbox != 0)
+		error_fatal("called.mailbox is not 0: %d\n", called.mailbox);
 }
 
 void unif_and_code_size_req(const size_t unif_size_req, const size_t code_size_req)
