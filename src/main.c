@@ -30,12 +30,12 @@ void qmkl_init()
 {
 	int ret_int;
 
+	if (++called.main != 1)
+		return;
+
 	ret_int = atexit(qmkl_finalize);
 	if (ret_int != 0)
 		error_fatal("atexit returned %d\n", ret_int);
-
-	if (++called.main != 1)
-		return;
 
 	mailbox_init();
 	memory_init();

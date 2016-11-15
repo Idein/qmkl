@@ -29,10 +29,14 @@
 
 void mailbox_init()
 {
+	if (++called.mailbox != 1)
+		return;
 }
 
 void mailbox_finalize()
 {
+	if (--called.mailbox != 0)
+		return;
 }
 
 int mailbox_open()
