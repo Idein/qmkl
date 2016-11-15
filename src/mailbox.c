@@ -8,7 +8,6 @@
  */
 
 #include "qmkl.h"
-#include "local/vcio.h"
 #include "local/called.h"
 #include "local/error.h"
 #include <string.h>
@@ -21,6 +20,11 @@
 #include <sys/types.h>
 
 #define DEVICE_PREFIX "/dev/"
+#define DEVICE_FILE_NAME "vcio"
+
+/* c.f. https://github.com/raspberrypi/linux/blob/rpi-4.4.y/drivers/char/broadcom/vcio.c */
+#define VCIO_IOC_MAGIC 100
+#define IOCTL_MBOX_PROPERTY _IOWR(VCIO_IOC_MAGIC, 0, char*)
 
 void mailbox_init()
 {
@@ -62,9 +66,9 @@ void mailbox_property(int fd_mb, void *buf)
 static void check_error(uint32_t p[])
 {
 	switch (p[1]) {
-		case VCMSG_REQUEST_SUCCESSFUL:
+		case RPI_FIRMWARE_STATUS_SUCCESS:
 			break;
-		case VCMSG_REQUEST_FAILED:
+		case RPI_FIRMWARE_STATUS_ERROR:
 			error_fatal("Mailbox process request failed\n");
 			break;
 		default:
@@ -78,14 +82,14 @@ uint32_t mailbox_mem_alloc(int fd_mb, uint32_t size, uint32_t align, uint32_t fl
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_ALLOCATE_MEM;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_ALLOCATE_MEMORY;
 	p[i++] = 3 * 4;
 	p[i++] = 3 * 4;
 	p[i++] = size;
 	p[i++] = align;
 	p[i++] = flags;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);
@@ -100,12 +104,12 @@ uint32_t mailbox_mem_free(int fd_mb, uint32_t handle)
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_RELEASE_MEM;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_RELEASE_MEMORY;
 	p[i++] = 1 * 4;
 	p[i++] = 1 * 4;
 	p[i++] = handle;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);
@@ -120,12 +124,12 @@ uint32_t mailbox_mem_lock(int fd_mb, uint32_t handle)
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_LOCK_MEM;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_LOCK_MEMORY;
 	p[i++] = 1 * 4;
 	p[i++] = 1 * 4;
 	p[i++] = handle;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);
@@ -140,12 +144,12 @@ uint32_t mailbox_mem_unlock(int fd_mb, uint32_t ptr_gpu)
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_UNLOCK_MEM;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_UNLOCK_MEMORY;
 	p[i++] = 1 * 4;
 	p[i++] = 1 * 4;
 	p[i++] = ptr_gpu;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);
@@ -160,15 +164,15 @@ uint32_t mailbox_qpu_execute(int fd_mb, uint32_t num_qpus, uint32_t control, uin
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_EXECUTE_QPU;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_EXECUTE_QPU;
 	p[i++] = 4 * 4;
 	p[i++] = 4 * 4;
 	p[i++] = num_qpus;
 	p[i++] = control;
 	p[i++] = noflush;
 	p[i++] = timeout;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);
@@ -183,12 +187,12 @@ uint32_t mailbox_qpu_enable(int fd_mb, uint32_t enable)
 	uint32_t p[16];
 
 	p[i++] = 0;
-	p[i++] = VCMSG_PROCESS_REQUEST;
-	p[i++] = VCMSG_SET_ENABLE_QPU;
+	p[i++] = RPI_FIRMWARE_STATUS_REQUEST;
+	p[i++] = RPI_FIRMWARE_SET_ENABLE_QPU;
 	p[i++] = 1 * 4;
 	p[i++] = 1 * 4;
 	p[i++] = enable;
-	p[i++] = VCMSG_PROPERTY_END;
+	p[i++] = RPI_FIRMWARE_PROPERTY_END;
 	p[0] = i * sizeof(p[0]);
 
 	mailbox_property(fd_mb, p);

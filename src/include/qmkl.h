@@ -14,6 +14,7 @@
 	void qmkl_finalize();
 
 #include "qmkl/types.h"
+#include "qmkl/raspberrypi-firmware.h"
 #include "qmkl/mailbox.h"
 #include "qmkl/memory.h"
 #include "qmkl/launch_qpu_code.h"
