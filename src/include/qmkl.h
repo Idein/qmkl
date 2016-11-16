@@ -10,8 +10,8 @@
 #ifndef _QMKL_H_
 #define _QMKL_H_
 
-	void qmkl_init();
-	void qmkl_finalize();
+	void qmkl_init() __attribute__((constructor));
+	void qmkl_finalize() __attribute__((destructor));
 
 #include "qmkl/types.h"
 #include "qmkl/raspberrypi-firmware.h"
