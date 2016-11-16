@@ -124,7 +124,6 @@ int main()
 		exit(EXIT_FAILURE);
 	}
 
-	qmkl_init();
 	A     = mkl_malloc(P * Q * (32 / 8), 4096);
 	B     = mkl_malloc(Q * R * (32 / 8), 4096);
 	C     = mkl_malloc(P * R * (32 / 8), 4096);
@@ -165,6 +164,5 @@ int main()
 	mkl_free(C);
 	mkl_free(B);
 	mkl_free(A);
-	qmkl_finalize();
 	return 0;
 }
