@@ -2,8 +2,7 @@
 
 
 QMKL is **Math Kernel Library for VideoCore IV QPU**.
-QMKL is **fully compatible with Intel MKL**,
-except that you need to include `qmkl.h` in your code.
+QMKL is **fully compatible with Intel MKL**.
 
 
 ## Requirements
