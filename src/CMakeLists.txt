@@ -23,6 +23,7 @@ install (
 )
 install (
 	FILES
+		include/mkl.h
 		include/qmkl.h
 	DESTINATION include
 )
