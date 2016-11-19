@@ -7,7 +7,7 @@
  * software. If not, contact the copyright holder above.
  */
 
-#include "qmkl.h"
+#include "mkl.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
