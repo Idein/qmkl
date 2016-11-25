@@ -5,11 +5,21 @@ include_directories (
 )
 
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+
 add_executable (
 	sgemm
 	sgemm.c
 )
 target_link_libraries (
 	sgemm LINK_PUBLIC
+	qmkl
+)
+
+add_executable (
+	scopy
+	scopy.c
+)
+target_link_libraries (
+	scopy LINK_PUBLIC
 	qmkl
 )
