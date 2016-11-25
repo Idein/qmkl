@@ -23,6 +23,8 @@
 
 	void blas_gemm_init();
 	void blas_gemm_finalize();
+	void blas_copy_init();
+	void blas_copy_finalize();
 
 	void cblas_sgemm(
 		const CBLAS_LAYOUT layout,
@@ -39,5 +41,12 @@
 		const float beta,
 		float *c,
 		const MKL_INT ldc);
+
+	void cblas_scopy(
+		const MKL_INT n,
+		const float *x,
+		const MKL_INT incx,
+		float *y,
+		const MKL_INT incy);
 
 #endif /* _QMKL_BLAS_H_ */

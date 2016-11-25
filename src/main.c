@@ -19,7 +19,8 @@ struct called called = {
 	.mailbox = 0,
 	.memory = 0,
 	.launch_qpu_code = 0,
-	.blas_gemm = 0
+	.blas_gemm = 0,
+	.blas_copy = 0
 };
 
 static size_t unif_size = 0, code_size = 0;
@@ -41,6 +42,7 @@ void qmkl_init()
 	memory_init();
 	launch_qpu_code_init();
 	blas_gemm_init();
+	blas_copy_init();
 
 	if (called.mailbox <= 0)
 		error_fatal("called.mailbox is 0 or negative: %d\n", called.mailbox);
@@ -50,6 +52,8 @@ void qmkl_init()
 		error_fatal("called.launch_qpu_code is 0 or negative: %d\n", called.launch_qpu_code);
 	if (called.blas_gemm <= 0)
 		error_fatal("called.blas_gemm is 0 or negative: %d\n", called.blas_gemm);
+	if (called.blas_copy <= 0)
+		error_fatal("called.blas_copy is 0 or negative: %d\n", called.blas_copy);
 
 	if (unif_size != 0) {
 		unif_common_cpu = mkl_malloc(unif_size, 4096);
@@ -69,11 +73,14 @@ void qmkl_finalize()
 	mkl_free(code_common_cpu);
 	mkl_free(unif_common_cpu);
 
+	blas_copy_finalize();
 	blas_gemm_finalize();
 	launch_qpu_code_finalize();
 	memory_finalize();
 	mailbox_finalize();
 
+	if (called.blas_copy != 0)
+		error_fatal("called.blas_copy is not 0: %d\n", called.blas_copy);
 	if (called.blas_gemm != 0)
 		error_fatal("called.blas_gemm is not 0: %d\n", called.blas_gemm);
 	if (called.launch_qpu_code != 0)
