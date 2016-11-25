@@ -2,7 +2,8 @@
 
 
 QMKL is **Math Kernel Library for VideoCore IV QPU**.
-QMKL is **fully compatible with Intel MKL**.
+QMKL is **compatible with Intel MKL**
+except for double precision etc.
 
 
 ## Requirements
@@ -27,4 +28,5 @@ $ sudo make install
 
 ```
 $ sudo test/sgemm
+$ sudo test/scopy
 ```
