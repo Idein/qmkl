@@ -127,6 +127,24 @@ alu cond_add=al op_add=or waddr_add=B_CUR_RA raddr_a=B_BASE_RA add_a=ra add_b=ra
 alu cond_add=al op_add=or waddr_add=C_CUR_RA raddr_a=C_BASE_RA add_a=ra add_b=ra
 
 
+;                                                + DMA store setup
+;                                                |  + units = 16
+;                                                |  |       + depth = 16
+;                                                |  |       |         + 0:vert 1:horiz
+;                                                |  |       |         |  + vpmbase_y = 0
+;                                                |  |       |         |  |       + vpmbase_x = 0
+;                                                |  |       |         |  |       |     + width = 32bit
+li cond_mul=al waddr_mul=vpmvcd_wr_setup imm=`0b_10_0010000_0010000_0_1__0000000_0000__000`
+
+;                                       + DMA store stride setup
+;                                       |                + blockmode = 0
+li cond_mul=al waddr_mul=TMP0_R imm=`0b_11_0000000000000_0_000_0000000000000`
+; stride = R * (32 / 8) - 16 * (32 / 8) = RdNREG_RA * 64 - 64 = (RdNREG_RA - 1) << 6
+alu cond_add=al op_add=sub waddr_add=TMP1_R raddr_a=RdNREG_RA sig=simm simm=1 add_a=ra add_b=rb
+alu cond_add=al op_add=shl waddr_add=TMP1_R sig=simm simm=6 add_a=TMP1_R add_b=rb
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 add_a=TMP0_R add_b=TMP1_R
+
+
 ; I_RA = P / 16 - 1
 alu cond_add=al waddr_add=I_RA op_add=sub raddr_a=Pd16_RA sig=simm simm=1 add_a=ra add_b=rb
 
@@ -289,23 +307,6 @@ alu cond_add=al waddr_add=I_RA op_add=sub raddr_a=Pd16_RA sig=simm simm=1 add_a=
 		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_13_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
 		alu cond_add=al cond_mul=al op_add=fadd op_mul=fmul waddr_add=vpm_write waddr_mul=TMP0_R raddr_a=RESULT_14_RA raddr_b=vpm_read add_a=ra add_b=TMP0_R mul_a=rb mul_b=TMP1_R
 		alu cond_add=al             op_add=fadd             waddr_add=vpm_write                  raddr_a=RESULT_15_RA                  add_a=ra add_b=TMP0_R
-
-		;                                                + DMA store setup
-		;                                                |  + units = 16
-		;                                                |  |       + depth = 16
-		;                                                |  |       |         + 0:vert 1:horiz
-		;                                                |  |       |         |  + vpmbase_y = 0
-		;                                                |  |       |         |  |       + vpmbase_x = 0
-		;                                                |  |       |         |  |       |     + width = 32bit
-		li cond_mul=al waddr_mul=vpmvcd_wr_setup imm=`0b_10_0010000_0010000_0_1__0000000_0000__000`
-
-		;                                       + DMA store stride setup
-		;                                       |                + blockmode = 0
-		li cond_mul=al waddr_mul=TMP0_R imm=`0b_11_0000000000000_0_000_0000000000000`
-		; stride = R * (32 / 8) - 16 * (32 / 8) = RdNREG_RA * 64 - 64 = (RdNREG_RA - 1) << 6
-		alu cond_add=al op_add=sub waddr_add=TMP1_R raddr_a=RdNREG_RA sig=simm simm=1 add_a=ra add_b=rb
-		alu cond_add=al op_add=shl waddr_add=TMP1_R sig=simm simm=6 add_a=TMP1_R add_b=rb
-		alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 add_a=TMP0_R add_b=TMP1_R
 
 		; vpm_st_addr = C_CUR_RA
 		alu cond_add=al op_add=or waddr_add=vpm_st_addr ws=1 raddr_a=C_CUR_RA add_a=ra add_b=ra
