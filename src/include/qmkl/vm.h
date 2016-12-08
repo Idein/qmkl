@@ -7,11 +7,14 @@
  * software. If not, contact the copyright holder above.
  */
 
-#ifndef _LOCAL_CALLED_H_
-#define _LOCAL_CALLED_H_
+#ifndef _QMKL_VM_H_
+#define _QMKL_VM_H_
 
-	extern struct called {
-		int main, mailbox, memory, launch_qpu_code, blas_gemm, blas_copy, vm_abs;
-	} called;
+#include "qmkl/types.h"
 
-#endif /* _LOCAL_CALLED_H_ */
+	void vm_abs_init();
+	void vm_abs_finalize();
+
+	void vsAbs(MKL_INT n, const float *a, float *y);
+
+#endif /* _QMKL_VM_H_ */

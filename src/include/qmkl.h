@@ -19,5 +19,6 @@
 #include "qmkl/memory.h"
 #include "qmkl/launch_qpu_code.h"
 #include "qmkl/blas.h"
+#include "qmkl/vm.h"
 
 #endif /* _QMKL_H_ */

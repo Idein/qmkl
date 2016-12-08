@@ -6,6 +6,7 @@ include_directories (
 )
 
 add_subdirectory (blas)
+add_subdirectory (vm)
 
 add_library (
 	qmkl SHARED
@@ -15,6 +16,7 @@ add_library (
 	launch_qpu_code.c
 	error.c
 	$<TARGET_OBJECTS:blas>
+	$<TARGET_OBJECTS:vm>
 )
 
 install (
@@ -35,5 +37,6 @@ install (
 		include/qmkl/memory.h
 		include/qmkl/launch_qpu_code.h
 		include/qmkl/blas.h
+		include/qmkl/vm.h
 	DESTINATION include/qmkl
 )
