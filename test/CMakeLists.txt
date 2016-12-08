@@ -33,3 +33,12 @@ target_link_libraries (
 	scopy LINK_PUBLIC
 	qmkl
 )
+
+add_executable (
+	vsAbs
+	vsAbs.c
+)
+target_link_libraries (
+	vsAbs LINK_PUBLIC
+	qmkl
+)
