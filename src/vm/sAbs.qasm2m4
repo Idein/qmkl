@@ -51,14 +51,16 @@ RA_ASSIGN(MEM_DST_RA)
 RA_ASSIGN(C_1024_RA)
 RB_ASSIGN(C_1024_RB)
 RA_ASSIGN(VPM_DMA_LOAD_SETUP_0_RA)
+RA_ASSIGN(VPM_DMA_LOAD_SETUP_16_RA)
 RA_ASSIGN(VPM_DMA_LOAD_SETUP_32_RA)
+RB_ASSIGN(VPM_DMA_LOAD_SETUP_32_RB)
 RA_ASSIGN(VPM_DMA_STORE_SETUP_0_RA)
+RA_ASSIGN(VPM_DMA_STORE_SETUP_16_RA)
 RA_ASSIGN(VPM_DMA_STORE_SETUP_32_RA)
 ;# As for 16x16 VPM R/W, they are symmetric.
 RA_ASSIGN(VPM_WRITE_SETUP_0_RA)
 RA_ASSIGN(VPM_WRITE_SETUP_16_RA)
 RA_ASSIGN(VPM_WRITE_SETUP_32_RA)
-RA_ASSIGN(VPM_WRITE_SETUP_48_RA)
 
 changequote(`[', `]')
 
@@ -85,9 +87,20 @@ li cond_add=al waddr_add=VPM_DMA_LOAD_SETUP_0_RA imm=`0b_1_000_0011_0000_0000_00
 ;                                                         | |   |    |    + nrows = 16
 ;                                                         | |   |    |    |    + vpitch = 1
 ;                                                         | |   |    |    |    |    + 0:horiz 1:vert
+;                                                         | |   |    |    |    |    |    + addr_y = 16
+;                                                         | |   |    |    |    |    |    |      + addr_x = 0
+li cond_add=al waddr_add=VPM_DMA_LOAD_SETUP_16_RA imm=`0b_1_000_0011_0000_0000_0001_0__0_010000_0000`
+
+;                                                         + DMA load setup
+;                                                         | + width = 32bit
+;                                                         | |   + mpitch = 8 * 2 ^ 3 = 64 = 16 * (32 / 8)
+;                                                         | |   |    + rowlen = 16
+;                                                         | |   |    |    + nrows = 16
+;                                                         | |   |    |    |    + vpitch = 1
+;                                                         | |   |    |    |    |    + 0:horiz 1:vert
 ;                                                         | |   |    |    |    |    |    + addr_y = 32
 ;                                                         | |   |    |    |    |    |    |      + addr_x = 0
-li cond_add=al waddr_add=VPM_DMA_LOAD_SETUP_32_RA imm=`0b_1_000_0011_0000_0000_0001_0__0_100000_0000`
+li cond_add=al waddr_add=VPM_DMA_LOAD_SETUP_32_RA imm=`0b_1_000_0011_0000_0000_0001_0__0_100000_0000` cond_mul=al waddr_mul=VPM_DMA_LOAD_SETUP_32_RB
 
 ;                                                         + DMA store setup
 ;                                                         |  + units = 32
@@ -97,6 +110,15 @@ li cond_add=al waddr_add=VPM_DMA_LOAD_SETUP_32_RA imm=`0b_1_000_0011_0000_0000_0
 ;                                                         |  |       |         |  |       + vpmbase_x = 0
 ;                                                         |  |       |         |  |       |     + width = 32bit
 li cond_add=al waddr_add=VPM_DMA_STORE_SETUP_0_RA imm=`0b_10_0100000_0010000_0_1__0000000_0000__000`
+
+;                                                          + DMA store setup
+;                                                          |  + units = 32
+;                                                          |  |       + depth = 16
+;                                                          |  |       |         + 0:vert 1:horiz
+;                                                          |  |       |         |  + vpmbase_y = 16
+;                                                          |  |       |         |  |       + vpmbase_x = 0
+;                                                          |  |       |         |  |       |     + width = 32bit
+li cond_add=al waddr_add=VPM_DMA_STORE_SETUP_16_RA imm=`0b_10_0100000_0010000_0_1__0010000_0000__000`
 
 ;                                                          + DMA store setup
 ;                                                          |  + units = 32
@@ -128,62 +150,235 @@ li cond_add=al waddr_add=VPM_WRITE_SETUP_16_RA imm=`0b_00_000000000000_000001_1_
 ;                                                      |               |      |   |      + addr_y = 32
 li cond_add=al waddr_add=VPM_WRITE_SETUP_32_RA imm=`0b_00_000000000000_000001_1_0_10__00_100000`
 
-;                                                      + VPM write setup
-;                                                      |               + stride = 1
-;                                                      |               |      + 0:vert 1:horiz
-;                                                      |               |      |   + size = 32bit
-;                                                      |               |      |   |      + addr_y = 48
-li cond_add=al waddr_add=VPM_WRITE_SETUP_48_RA imm=`0b_00_000000000000_000001_1_0_10__00_110000`
+
+
+; #init-1
+; Load: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_0_RA add_a=ra add_b=ra
+; vpm_ld_addr = MEM_SRC_RB
+;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
+; Load: y = 16
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_16_RA add_a=ra add_b=ra
+; Write: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_WRITE_SETUP_0_RA add_a=ra add_b=ra
+; Wait for DMA Load
+alu cond_add=al op_add=or raddr_a=vpm_ld_wait add_a=ra add_b=ra
+
+
+; #init-2
+; Read: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_0_RA add_a=ra add_b=ra
+; vpm_ld_addr = MEM_SRC_RB
+;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
+; vpm_write = abs of vpm_read
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+; Load: y = 32
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_32_RA add_a=ra add_b=ra
+; Store: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_0_RA add_a=ra add_b=ra
+; Wait for DMA Load
+alu cond_add=al op_add=or raddr_a=vpm_ld_wait add_a=ra add_b=ra
+
+
+; #init-3
+; Read: y = 16
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_16_RA add_a=ra add_b=ra
+; vpm_ld_addr = MEM_SRC_RB
+;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
+; vpm_st_addr = MEM_DST_RA
+;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+; vpm_write = abs of vpm_read
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+; Load: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_0_RA add_a=ra add_b=ra
+; Store: y = 16
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_16_RA add_a=ra add_b=ra
+; Wait for DMA Load and Store
+alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+
 
 :loop
 
-	; Load: y = 0
-	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_0_RA add_a=ra add_b=ra
+	; #main-1
+	; Read: y = 32
+	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_32_RA add_a=ra add_b=ra
 	; vpm_ld_addr = MEM_SRC_RB
 	;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
 	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
-
-	; Wait for DMA Load
-	alu cond_add=al op_add=or raddr_a=vpm_ld_wait add_a=ra add_b=ra
-
-	; Read: y = 0
-	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_0_RA add_a=ra add_b=ra
+	; vpm_st_addr = MEM_DST_RA
+	;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+	; vpm_write = abs of vpm_read
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	; Load: y = 16
+	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_16_RA add_a=ra add_b=ra
+	; Store: y = 32
+	alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_32_RA add_a=ra add_b=ra
 	; Write: y = 0
 	alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_WRITE_SETUP_0_RA add_a=ra add_b=ra
+	; Wait for DMA Load and Store
+	alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
 
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
-	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
 
-	; N_RA = N_RA - 1
+	; #main-2
+	; Read: y = 0
+	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_0_RA add_a=ra add_b=ra
+	; vpm_ld_addr = MEM_SRC_RB
+	;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
+	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
+	; vpm_st_addr = MEM_DST_RA
+	;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+	; vpm_write = abs of vpm_read
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	; Load: y = 32
+	;  and TMP0_R = N_RA
+	alu cond_add=al cond_mul=al op_add=or op_mul=v8min waddr_add=vpmvcd_rd_setup waddr_mul=TMP0_R raddr_a=N_RA raddr_b=VPM_DMA_LOAD_SETUP_32_RB add_a=rb add_b=rb mul_a=ra mul_b=ra
+	; Store: y = 0
+	;  and N_RA = N_RA - 1 = TMP0_R - 1
 	;  and set flags on N_RA - 1
-	alu cond_add=al op_add=sub sf=1 waddr_add=N_RA raddr_a=N_RA sig=simm simm=1 add_a=ra add_b=rb
+	alu cond_add=al cond_mul=al op_add=sub op_mul=v8min sf=1 waddr_add=N_RA waddr_mul=vpmvcd_wr_setup raddr_a=VPM_DMA_STORE_SETUP_0_RA sig=simm simm=1 add_a=TMP0_R add_b=rb mul_a=ra mul_b=ra
+	; Wait for DMA Load and Store
+	alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+
+
+	; #main-3
+	; Read: y = 16
+	alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_16_RA add_a=ra add_b=ra
+	; vpm_ld_addr = MEM_SRC_RB
+	;  and MEM_SRC_RB = MEM_SRC_RB + 16 * 16 * 4 = MEM_SRC_RB + 1024
+	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=C_1024_RA raddr_b=MEM_SRC_RB add_a=ra add_b=rb mul_a=rb mul_b=rb
+	; vpm_st_addr = MEM_DST_RA
+	;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+	alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+	; vpm_write = abs of vpm_read
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+	alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+
 	bra cond_br=anyzc rel=1 imm=:loop
 	; 3 delay slots {
-		; Store: y = 0
-		alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_0_RA add_a=ra add_b=ra
-		; vpm_st_addr = MEM_DST_RA
-		;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
-		alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
-
-		; Wait for DMA Store
-		alu cond_add=al op_add=or raddr_b=vpm_st_wait add_a=rb add_b=rb
+		; Load: y = 0
+		alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_0_RA add_a=ra add_b=ra
+		; Store: y = 16
+		alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_16_RA add_a=ra add_b=ra
+		; Wait for DMA Load and Store
+		alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
 	; }
 
-li cond_add=al waddr_add=host_int imm=1
+; #fin-1
+; Read: y = 32
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_WRITE_SETUP_32_RA add_a=ra add_b=ra
+; vpm_st_addr = MEM_DST_RA
+;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+; vpm_write = abs of vpm_read
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+alu cond_add=al op_add=fminabs waddr_add=vpm_write raddr_a=vpm_read add_a=ra add_b=ra
+; Store: y = 32
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_32_RA add_a=ra add_b=ra
+; Wait for DMA Store
+alu cond_add=al op_add=or raddr_b=vpm_st_wait add_a=rb add_b=rb
+
+; #fin-2
+; vpm_st_addr = MEM_DST_RA
+;  and MEM_DST_RA = MEM_DST_RA + 16 * 16 * 4 = MEM_DST_RA + 1024
+alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=C_1024_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+; Wait for DMA Store
+;  and trigger an interrupt
+alu cond_add=al op_add=or waddr_add=host_int raddr_a=C_1024_RA raddr_b=vpm_st_wait add_a=ra add_b=rb
+
 alu sig=pe
 alu
 alu

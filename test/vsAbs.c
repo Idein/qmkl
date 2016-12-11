@@ -108,7 +108,7 @@ static void mf_vsAbs_neon(const MKL_INT n, const float *a, float *y)
 
 int main()
 {
-	const int n = 4096 * 2048;
+	const int n = 4096 * 512 * 3;
 	float *a, *y, *y_ref;
 #ifdef _HAVE_NEON_
 	float *y_neon;

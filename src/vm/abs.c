@@ -37,15 +37,17 @@ void vsAbs(MKL_INT n, const float *a, float *y)
 	unsigned a_gpu = get_ptr_gpu_from_ptr_cpu(a);
 	unsigned y_gpu = get_ptr_gpu_from_ptr_cpu(y);
 	unsigned *p;
-	const int vector_length = 16 * 16;
+	const int vector_length = 3 * 16 * 16;
 
+	if (n <= vector_length)
+		error_fatal("n must be greater than %d\n", vector_length);
 	if (n % vector_length != 0)
 		error_fatal("n must be a multiple of %d\n", vector_length);
 
 	p = unif_common_cpu;
-	unif_add_uint(n / vector_length, &p);
-	unif_add_uint(a_gpu,             &p);
-	unif_add_uint(y_gpu,             &p);
+	unif_add_uint(n / vector_length - 1, &p);
+	unif_add_uint(a_gpu,                 &p);
+	unif_add_uint(y_gpu,                 &p);
 
 	memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
 
