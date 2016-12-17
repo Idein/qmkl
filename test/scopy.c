@@ -36,14 +36,15 @@ static void mf_scopy(const MKL_INT n, const float *x, float *y)
 	{
 		int thread_num = omp_get_thread_num();
 		int num_threads = omp_get_num_threads();
-		size_t offset, len;
+		size_t offset, size;
 
-		offset = ((n / num_threads) * thread_num) / sizeof(*x);
-		len = n / num_threads;
-		if (thread_num == num_threads - 1)
-			len = n - (n / num_threads) * (num_threads - 1);
+		offset = (n / num_threads) * thread_num * sizeof(*x);
+		size = n / num_threads * sizeof(*x);
 
-		memcpy(y + offset, x + offset, len);
+		memcpy(((uint8_t*) y) + offset, ((uint8_t*) x) + offset, size);
+	}
+}
+
 	}
 }
 
@@ -59,6 +60,9 @@ int main()
 
 	mf_srandom();
 	mf_init_random(x, 1, n);
+	/* To detect insufficient copies... */
+	mf_init_random(y, 1, n);
+	mf_init_random(y_ref, 1, n);
 
 	printf("n = %d\n", n);
 	printf("==== scopy example (y = x) ====\n");

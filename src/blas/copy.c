@@ -54,7 +54,7 @@ void cblas_scopy(
 		error_fatal("n must be greater than 8192\n");
 
 	p = unif_common_cpu;
-	unif_add_uint(n / 4096 - 1, &p);
+	unif_add_uint(n / (4096 / 4) - 1, &p);
 	unif_add_uint(x_gpu,        &p);
 	unif_add_uint(y_gpu,        &p);
 
