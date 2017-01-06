@@ -29,4 +29,7 @@ $ sudo make install
 ```
 $ sudo test/sgemm
 $ sudo test/scopy
+$ sudo test/vsAbs
 ```
+
+The results are [here](https://gist.github.com/Terminus-IMRC/1ec399a64edcacfc3040baf3c97f0895).
