@@ -1,11 +1,14 @@
 # qbin_dep_on_c (c_filename qbin_basename1 qbin_basename2 ...)
-function (qbin_dep_on_c c_filename)
+macro (qbin_dep_on_c c_filename)
 
 	foreach (basename ${ARGN})
 
-		SET_SOURCE_FILES_PROPERTIES (
+		# Todo: We cannot use get_source_file_property
+		#       because it appends '\' every after variables.
+		set (${c_filename}_deps ${${c_filename}_deps} ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex)
+		set_source_files_properties (
 			${c_filename} PROPERTIES
-				OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex
+				OBJECT_DEPENDS "${${c_filename}_deps}"
 		)
 
 		add_custom_command (
@@ -16,4 +19,4 @@ function (qbin_dep_on_c c_filename)
 
 	endforeach (basename)
 
-endfunction (qbin_dep_on_c)
+endmacro (qbin_dep_on_c)
