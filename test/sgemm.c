@@ -107,6 +107,18 @@ static float mf_maximum_relative_error(float *C1, float *C2, const int P, const 
 	return maximum_error;
 }
 
+static void mf_print(float *p, const int height, const int width)
+{
+	int i, j;
+
+	for (i = 0; i < height; i ++) {
+		printf("%4d:", i);
+		for (j = 0; j < width; j ++)
+			printf(" %1.0f", p[i * width + j]);
+		printf("\n");
+	}
+}
+
 static void mf_sgemm(float *A, float *B, float *C, const int P, const int Q, const int R, const float ALPHA, const float BETA)
 {
 	int i, j, k;
