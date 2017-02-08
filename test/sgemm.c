@@ -19,6 +19,15 @@
 #include <arm_neon.h>
 #endif /* _HAVE_NEON_ */
 
+static void mf_init_constant(float *p, const int height, const int width, const float c)
+{
+	int i, j;
+
+	for (i = 0; i < height; i ++)
+		for (j = 0; j < width; j ++)
+			p[i * width + j] = c;
+}
+
 static void mf_srandom()
 {
 	struct timeval tv;
