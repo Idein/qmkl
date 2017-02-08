@@ -1,4 +1,4 @@
-# QMKL
+# QMKL - Idein's internal version
 
 
 QMKL is **Math Kernel Library for VideoCore IV QPU**.
@@ -16,7 +16,7 @@ this library. Just clone them and do `make && sudo make install`.
 ## Installation
 
 ```
-$ git clone https://github.com/Terminus-IMRC/qmkl.git
+$ git clone https://github.com/Idein/qmkl.git
 $ cd qmkl/
 $ cmake .
 $ make
