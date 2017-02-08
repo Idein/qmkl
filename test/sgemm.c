@@ -15,10 +15,13 @@
 #include <sys/time.h>
 #include <omp.h>
 
+#define DO_1FILL
+
 #ifdef _HAVE_NEON_
 #include <arm_neon.h>
 #endif /* _HAVE_NEON_ */
 
+#ifdef DO_1FILL
 static void mf_init_constant(float *p, const int height, const int width, const float c)
 {
 	int i, j;
@@ -27,6 +30,8 @@ static void mf_init_constant(float *p, const int height, const int width, const 
 		for (j = 0; j < width; j ++)
 			p[i * width + j] = c;
 }
+
+#else /* DO_1FILL */
 
 static void mf_srandom()
 {
@@ -43,6 +48,8 @@ static void mf_init_random(float *p, const int height, const int width)
 		for (j = 0; j < width; j ++)
 			p[i * width + j] = (random() % 100000) / 1357.9;
 }
+
+#endif /* DO_1FILL */
 
 static float mf_minimum_absolute_error(float *C1, float *C2, const int P, const int R)
 {
@@ -248,7 +255,6 @@ static void mf_sgemm_neon(float *A, float *B, float *C, const int P, const int Q
 
 int main()
 {
-	const unsigned NREG = 16;
 	const unsigned P = 96;
 	const unsigned Q = 363;
 	const unsigned R = 3072;
@@ -260,31 +266,29 @@ int main()
 	float BETA;
 	struct timeval start, end;
 
-	if (P % 16 != 0) {
-		fprintf(stderr, "error: P must be a multiple of 16\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (R % NREG != 0) {
-		fprintf(stderr, "error: R must be a multiple of NREG\n");
-		exit(EXIT_FAILURE);
-	}
-
 	A     = mkl_malloc(P * Q * (32 / 8), 4096);
 	B     = mkl_malloc(Q * R * (32 / 8), 4096);
 	C     = mkl_malloc(P * R * (32 / 8), 4096);
 	C_ref = mkl_malloc(P * R * (32 / 8), 4096);
+#ifdef DO_1FILL
+	mf_init_constant(&ALPHA, 1, 1, 1);
+	mf_init_constant(&BETA,  1, 1, 1);
+	mf_init_constant(A, P, Q, 1);
+	mf_init_constant(B, Q, R, 1);
+	mf_init_constant(C, P, R, 1);
+#else /* DO_1FILL */
 	mf_srandom();
+	mf_init_random(&ALPHA, 1, 1);
+	mf_init_random(&BETA,  1, 1);
 	mf_init_random(A, P, Q);
 	mf_init_random(B, Q, R);
 	mf_init_random(C, P, R);
+#endif /* DO_1FILL */
 	memcpy(C_ref, C, P * R * (32 / 8));
 #ifdef _HAVE_NEON_
 	C_neon = mkl_malloc(P * R * (32 / 8), 4096);
 	memcpy(C_neon, C, P * R * (32 / 8));
 #endif /* _HAVE_NEON_ */
-	mf_init_random(&ALPHA, 1, 1);
-	mf_init_random(&BETA,  1, 1);
 
 	printf("P = %d\n", P);
 	printf("Q = %d\n", Q);
