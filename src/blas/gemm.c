@@ -24,7 +24,7 @@ void blas_gemm_init()
 	if (++called.blas_gemm != 1)
 		return;
 
-	unif_and_code_size_req(14 * (32 / 8), sizeof(code_sgemm));
+	unif_and_code_size_req(12 * (32 / 8), sizeof(code_sgemm));
 }
 
 void blas_gemm_finalize()
@@ -54,13 +54,12 @@ void cblas_sgemm(
 	MKL_UINT c_gpu = get_ptr_gpu_from_ptr_cpu(c);
 	uint32_t *p = NULL;
 
-	const unsigned NREG = 16;
+	const unsigned NREG = 64;
 	const unsigned P = m;
 	const unsigned Q = k;
 	const unsigned R = n;
 	const float ALPHA = alpha;
 	const float BETA = beta;
-	unsigned A_STRIDE_K, B_STRIDE_K, B_STRIDE_J, C_STRIDE_J, A_STRIDE_I, C_STRIDE_I;
 
 	if (layout != CblasRowMajor)
 		error_fatal("layout must be RowMajor for now\n");
@@ -79,28 +78,19 @@ void cblas_sgemm(
 	if (R % NREG != 0)
 		error_fatal("R must be a multiple of NREG\n");
 
-	A_STRIDE_K = (32 / 8);
-	B_STRIDE_K = R * (32 / 8);
-	B_STRIDE_J = NREG * (32 / 8);
-	C_STRIDE_J = NREG * (32 / 8);
-	A_STRIDE_I = 16 * Q * (32 / 8);
-	C_STRIDE_I = 16 * R * (32 / 8);
-
 	p = unif_common_cpu;
-	unif_add_uint (P / 16,     &p);
-	unif_add_uint (Q,          &p);
-	unif_add_uint (R / NREG,   &p);
-	unif_add_float(ALPHA,      &p);
-	unif_add_float(BETA,       &p);
-	unif_add_uint (a_gpu,      &p);
-	unif_add_uint (b_gpu,      &p);
-	unif_add_uint (c_gpu,      &p);
-	unif_add_uint (A_STRIDE_K, &p);
-	unif_add_uint (B_STRIDE_K, &p);
-	unif_add_uint (B_STRIDE_J, &p);
-	unif_add_uint (C_STRIDE_J, &p);
-	unif_add_uint (A_STRIDE_I, &p);
-	unif_add_uint (C_STRIDE_I, &p);
+	unif_add_uint (unif_common_gpu, &p);
+	unif_add_uint (P / 16,          &p);
+	unif_add_uint (Q,               &p);
+	unif_add_uint (R / NREG,        &p);
+	unif_add_uint (a_gpu,           &p);
+	unif_add_uint (b_gpu,           &p);
+	unif_add_uint (c_gpu,           &p);
+	unif_add_uint (Q * (32 / 8),    &p);
+	unif_add_uint (R * (32 / 8),    &p);
+	unif_add_uint (R * (32 / 8),    &p);
+	unif_add_float(ALPHA,           &p);
+	unif_add_float(BETA,            &p);
 
 	memcpy(code_common_cpu, code_sgemm, sizeof(code_sgemm));
 

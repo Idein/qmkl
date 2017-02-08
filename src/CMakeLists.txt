@@ -1,4 +1,5 @@
 include (../cmake/qasm2m4_dep_on_c.cmake)
+include (../cmake/qbin_dep_on_c.cmake)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
 
 include_directories (
