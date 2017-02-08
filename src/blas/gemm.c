@@ -116,19 +116,19 @@ void cblas_sgemm(
 			p[th * 13 +  7] = 1452;
 			p[th * 13 +  8] = 12288;
 			p[th * 13 +  9] = 12288;
-			p[th * 13 + 10] = ALPHA;
-			p[th * 13 + 11] = BETA;
+			memcpy(p + th * 13 + 10, &ALPHA, sizeof(float));
+			memcpy(p + th * 13 + 11, &BETA, sizeof(float));
 			p[th * 13 + 12] = th;
 		}
 		th = 0;
 		for (i = 0; i < p_div; i ++) {
 			for (j = 0; j < r_div; j ++) {
-				p[th * 13 +  1] = (i != p_div - 1) ? h : P / 16 - i * h;
+				p[th * 13 +  1] = (i != p_div - 1) ? h : (P / 16 - i * h);
 				p[th * 13 +  2] = Q;
-				p[th * 13 +  3] = (j != r_div - 1) ? w : R / 64 - j * w;
-				p[th * 13 +  4] = (unsigned) ((unsigned*) a_gpu + i * 16 * h);
-				p[th * 13 +  5] = (unsigned) ((unsigned*) b_gpu + j * 64 * w);
-				p[th * 13 +  6] = (unsigned) ((unsigned*) c_gpu + i * 16 * h + j * 64 * w);
+				p[th * 13 +  3] = (j != r_div - 1) ? w : (R / 64 - j * w);
+				p[th * 13 +  4] = (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             );
+				p[th * 13 +  5] = (unsigned) ((unsigned*)b_gpu +                  j * 64 * w);
+				p[th * 13 +  6] = (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w);
 				th ++;
 			}
 		}
@@ -148,7 +148,6 @@ void cblas_sgemm(
 		(unsigned*) unif_common_gpu + 10 * 13, code_common_gpu,
 		(unsigned*) unif_common_gpu + 11 * 13, code_common_gpu
 	);
-
 #else
 #endif
 }
