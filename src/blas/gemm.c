@@ -113,9 +113,9 @@ void cblas_sgemm(
 		unsigned th, i, j;
 		for (th = 0; th < 12; th ++) {
 			p[th * 13 +  0] = (unsigned) ((unsigned*) unif_common_gpu + th * 13);
-			p[th * 13 +  7] = 1452;
-			p[th * 13 +  8] = 12288;
-			p[th * 13 +  9] = 12288;
+			p[th * 13 +  7] = Q * (32 / 8);
+			p[th * 13 +  8] = R * (32 / 8);
+			p[th * 13 +  9] = R * (32 / 8);
 			memcpy(p + th * 13 + 10, &ALPHA, sizeof(float));
 			memcpy(p + th * 13 + 11, &BETA, sizeof(float));
 			p[th * 13 + 12] = th;
@@ -133,7 +133,6 @@ void cblas_sgemm(
 			}
 		}
 	}
-
 	launch_qpu_code_mailbox(12, 1, 5e3,
 		(unsigned*) unif_common_gpu +  0 * 13, code_common_gpu,
 		(unsigned*) unif_common_gpu +  1 * 13, code_common_gpu,
