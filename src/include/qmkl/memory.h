@@ -11,6 +11,7 @@
 #define _QMKL_MEMORY_H_
 
 #include <sys/types.h>
+#include "qmkl/types.h"
 
 	void memory_init();
 	void memory_finalize();
