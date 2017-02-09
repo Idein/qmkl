@@ -21,3 +21,11 @@ endif ()
 
 add_subdirectory (src)
 add_subdirectory (test)
+
+enable_testing()
+add_test(sgemm sudo ./test/sgemm)
+add_custom_target(
+	check
+	COMMAND ${CMAKE_CTEST_COMMAND}
+	DEPENDS sgemm
+)
