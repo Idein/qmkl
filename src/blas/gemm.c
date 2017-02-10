@@ -22,6 +22,8 @@ static const unsigned code_sgemm_1thread[] = {
 #include "sgemm_1thread.qhex"
 };
 
+static const int unif_len_1th = 14;
+
 
 void blas_gemm_init()
 {
@@ -29,7 +31,7 @@ void blas_gemm_init()
         return;
 
     unif_and_code_size_req(12 * (32 / 8), sizeof(code_sgemm_1thread));
-    unif_and_code_size_req(13 * (32 / 8), sizeof(code_sgemm));
+    unif_and_code_size_req(unif_len_1th * (32 / 8), sizeof(code_sgemm));
 }
 
 void blas_gemm_finalize()
@@ -127,40 +129,40 @@ void cblas_sgemm(
             const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
             unsigned th, i, j;
             for (th = 0; th < n_threads; th ++) {
-                p[th * 13 +  0] = (unsigned) ((unsigned*) unif_common_gpu + th * 13);
-                p[th * 13 +  7] = Q * (32 / 8);
-                p[th * 13 +  8] = R * (32 / 8);
-                p[th * 13 +  9] = R * (32 / 8);
-                memcpy(p + th * 13 + 10, &ALPHA, sizeof(float));
-                memcpy(p + th * 13 + 11, &BETA, sizeof(float));
-                p[th * 13 + 12] = th;
+                p[th * unif_len_1th +  0] = (unsigned) ((unsigned*) unif_common_gpu + th * unif_len_1th);
+                p[th * unif_len_1th +  7] = Q * (32 / 8);
+                p[th * unif_len_1th +  8] = R * (32 / 8);
+                p[th * unif_len_1th +  9] = R * (32 / 8);
+                memcpy(p + th * unif_len_1th + 10, &ALPHA, sizeof(float));
+                memcpy(p + th * unif_len_1th + 11, &BETA, sizeof(float));
+                p[th * unif_len_1th + 12] = th;
             }
             th = 0;
             for (i = 0; i < p_div; i ++) {
                 for (j = 0; j < r_div; j ++) {
-                    p[th * 13 +  1] = (i != p_div - 1) ? h : (P - i * h * 16) / 16;
-                    p[th * 13 +  2] = Q;
-                    p[th * 13 +  3] = (j != r_div - 1) ? w : (R - j * w * 64) / 64;
-                    p[th * 13 +  4] = (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             );
-                    p[th * 13 +  5] = (unsigned) ((unsigned*)b_gpu +                  j * 64 * w);
-                    p[th * 13 +  6] = (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w);
+                    p[th * unif_len_1th +  1] = (i != p_div - 1) ? h : (P - i * h * 16) / 16;
+                    p[th * unif_len_1th +  2] = Q;
+                    p[th * unif_len_1th +  3] = (j != r_div - 1) ? w : (R - j * w * 64) / 64;
+                    p[th * unif_len_1th +  4] = (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             );
+                    p[th * unif_len_1th +  5] = (unsigned) ((unsigned*)b_gpu +                  j * 64 * w);
+                    p[th * unif_len_1th +  6] = (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w);
                     th ++;
                 }
             }
         }
         launch_qpu_code_mailbox(n_threads, 1, 5e3,
-                                (unsigned*) unif_common_gpu +  0 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  1 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  2 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  3 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  4 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  5 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  6 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  7 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  8 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu +  9 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu + 10 * 13, code_common_gpu,
-                                (unsigned*) unif_common_gpu + 11 * 13, code_common_gpu
+                                (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  2 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  3 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  4 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  5 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  6 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  7 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  8 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu +  9 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
+                                (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
         );
     }
 }
