@@ -135,6 +135,7 @@ void cblas_sgemm(
                 unif_set_float(p + th * unif_len_1th + 10, ALPHA);
                 unif_set_float(p + th * unif_len_1th + 11, BETA);
                 unif_set_uint (p + th * unif_len_1th + 12, th);
+                unif_set_uint (p + th * unif_len_1th + 13, n_threads);
             }
             th = 0;
             for (i = 0; i < p_div; i ++) {
