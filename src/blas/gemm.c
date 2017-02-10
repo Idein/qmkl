@@ -106,12 +106,14 @@ void cblas_sgemm(
 
 	memcpy(code_common_cpu, code_sgemm, sizeof(code_sgemm));
 
+	const unsigned p_div = 2, r_div = 6;
+	const unsigned n_threads = p_div * r_div;
 	p = unif_common_cpu;
 	{
-		const unsigned p_div = 2, r_div = 6;
-		const unsigned h = P / (16*p_div), w = R / (64*r_div);
+		const unsigned h = (P + 16 * p_div - 1) / (16 * p_div);
+		const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
 		unsigned th, i, j;
-		for (th = 0; th < 12; th ++) {
+		for (th = 0; th < n_threads; th ++) {
 			p[th * 13 +  0] = (unsigned) ((unsigned*) unif_common_gpu + th * 13);
 			p[th * 13 +  7] = Q * (32 / 8);
 			p[th * 13 +  8] = R * (32 / 8);
@@ -123,9 +125,9 @@ void cblas_sgemm(
 		th = 0;
 		for (i = 0; i < p_div; i ++) {
 			for (j = 0; j < r_div; j ++) {
-				p[th * 13 +  1] = (i != p_div - 1) ? h : (P / 16 - i * h);
+				p[th * 13 +  1] = (i != p_div - 1) ? h : (P - i * h * 16) / 16;
 				p[th * 13 +  2] = Q;
-				p[th * 13 +  3] = (j != r_div - 1) ? w : (R / 64 - j * w);
+				p[th * 13 +  3] = (j != r_div - 1) ? w : (R - j * w * 64) / 64;
 				p[th * 13 +  4] = (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             );
 				p[th * 13 +  5] = (unsigned) ((unsigned*)b_gpu +                  j * 64 * w);
 				p[th * 13 +  6] = (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w);
@@ -133,7 +135,7 @@ void cblas_sgemm(
 			}
 		}
 	}
-	launch_qpu_code_mailbox(12, 1, 5e3,
+	launch_qpu_code_mailbox(n_threads, 1, 5e3,
 		(unsigned*) unif_common_gpu +  0 * 13, code_common_gpu,
 		(unsigned*) unif_common_gpu +  1 * 13, code_common_gpu,
 		(unsigned*) unif_common_gpu +  2 * 13, code_common_gpu,
