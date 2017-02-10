@@ -23,9 +23,14 @@ add_subdirectory (src)
 add_subdirectory (test)
 
 enable_testing()
-add_test(sgemm sudo ./test/sgemm)
+
+include (cmake/FindCUnit.cmake)
+
+if(CUNIT_FOUND)
+add_test(sgemm_spec sudo ./test/sgemm_spec)
 add_custom_target(
 	check
 	COMMAND ${CMAKE_CTEST_COMMAND}
-	DEPENDS sgemm
+	DEPENDS sgemm_spec
 )
+endif(CUNIT_FOUND)
