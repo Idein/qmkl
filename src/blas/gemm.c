@@ -129,23 +129,23 @@ void cblas_sgemm(
             const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
             unsigned th, i, j;
             for (th = 0; th < n_threads; th ++) {
-                p[th * unif_len_1th +  0] = (unsigned) ((unsigned*) unif_common_gpu + th * unif_len_1th);
-                p[th * unif_len_1th +  7] = Q * (32 / 8);
-                p[th * unif_len_1th +  8] = R * (32 / 8);
-                p[th * unif_len_1th +  9] = R * (32 / 8);
-                memcpy(p + th * unif_len_1th + 10, &ALPHA, sizeof(float));
-                memcpy(p + th * unif_len_1th + 11, &BETA, sizeof(float));
-                p[th * unif_len_1th + 12] = th;
+                unif_set_uint (p + th * unif_len_1th +  0, (unsigned) ((unsigned*) unif_common_gpu + th * unif_len_1th));
+                unif_set_uint (p + th * unif_len_1th +  7, Q * (32 / 8));
+                unif_set_uint (p + th * unif_len_1th +  8, R * (32 / 8));
+                unif_set_uint (p + th * unif_len_1th +  9, R * (32 / 8));
+                unif_set_float(p + th * unif_len_1th + 10, ALPHA);
+                unif_set_float(p + th * unif_len_1th + 11, BETA);
+                unif_set_uint (p + th * unif_len_1th + 12, th);
             }
             th = 0;
             for (i = 0; i < p_div; i ++) {
                 for (j = 0; j < r_div; j ++) {
-                    p[th * unif_len_1th +  1] = (i != p_div - 1) ? h : (P - i * h * 16) / 16;
-                    p[th * unif_len_1th +  2] = Q;
-                    p[th * unif_len_1th +  3] = (j != r_div - 1) ? w : (R - j * w * 64) / 64;
-                    p[th * unif_len_1th +  4] = (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             );
-                    p[th * unif_len_1th +  5] = (unsigned) ((unsigned*)b_gpu +                  j * 64 * w);
-                    p[th * unif_len_1th +  6] = (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w);
+                    unif_set_uint(p + th * unif_len_1th +  1, (i != p_div - 1) ? h : (P - i * h * 16) / 16);
+                    unif_set_uint(p + th * unif_len_1th +  2, Q);
+                    unif_set_uint(p + th * unif_len_1th +  3, (j != r_div - 1) ? w : (R - j * w * 64) / 64);
+                    unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             ));
+                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  j * 64 * w));
+                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w));
                     th ++;
                 }
             }
