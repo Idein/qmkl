@@ -192,22 +192,22 @@ MKL_UINT get_ptr_gpu_from_ptr_cpu(const void *ptr_cpu)
 	error_fatal("No such ptr_cpu: %p\n", ptr_cpu);
 }
 
-void unif_set_uint(const MKL_UINT u, MKL_UINT *p)
+void unif_set_uint(MKL_UINT *p, const MKL_UINT u)
 {
 	memcpy(p, &u, sizeof(u));
 }
 
-void unif_set_float(const float f, MKL_UINT *p)
+void unif_set_float(MKL_UINT *p, const float f)
 {
 	memcpy(p, &f, sizeof(f));
 }
 
 void unif_add_uint(const MKL_UINT u, MKL_UINT **p)
 {
-	unif_set_uint(u, (*p)++);
+	unif_set_uint((*p)++, u);
 }
 
 void unif_add_float(const float f, MKL_UINT **p)
 {
-	unif_set_float(f, (*p)++);
+	unif_set_float((*p)++, f);
 }
