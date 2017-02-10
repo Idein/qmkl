@@ -42,3 +42,16 @@ target_link_libraries (
 	vsAbs LINK_PUBLIC
 	qmkl
 )
+
+include (../cmake/FindCUnit.cmake)
+
+if(CUNIT_FOUND)
+add_executable (
+	sgemm_spec
+	sgemm_spec.c
+)
+target_link_libraries (
+	sgemm_spec
+	LINK_PUBLIC qmkl ${CUNIT_LIBRARIES}
+)
+endif(CUNIT_FOUND)
