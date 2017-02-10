@@ -61,7 +61,6 @@ void cblas_sgemm(
     MKL_UINT c_gpu = get_ptr_gpu_from_ptr_cpu(c);
     uint32_t *p = NULL;
 
-    const unsigned NREG = 64;
     const unsigned P = m;
     const unsigned Q = k;
     const unsigned R = n;
@@ -82,8 +81,8 @@ void cblas_sgemm(
     if (P % 16 != 0)
         error_fatal("P must be a multiple of 16\n");
 
-    if (R % NREG != 0)
-        error_fatal("R must be a multiple of NREG\n");
+    if (R % 64 != 0)
+        error_fatal("R must be a multiple of 64\n");
 
     unsigned r_div = 6;
     if (R < r_div*64) r_div = 4;
@@ -107,7 +106,7 @@ void cblas_sgemm(
         unif_add_uint (unif_common_gpu, &p);
         unif_add_uint (P / 16,          &p);
         unif_add_uint (Q,               &p);
-        unif_add_uint (R / NREG,        &p);
+        unif_add_uint (R / 64,          &p);
         unif_add_uint (a_gpu,           &p);
         unif_add_uint (b_gpu,           &p);
         unif_add_uint (c_gpu,           &p);
