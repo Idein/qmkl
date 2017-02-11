@@ -121,11 +121,8 @@ void cblas_sgemm(
         /* multi threads sgemm */
 
         memcpy(code_common_cpu, code_sgemm, sizeof(code_sgemm));
-
         p = unif_common_cpu;
         {
-            const unsigned h = (P + 16 * p_div - 1) / (16 * p_div);
-            const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
             unsigned th, i, j;
             for (th = 0; th < n_threads; th ++) {
                 unif_set_uint (p + th * unif_len_1th +  0, (unsigned) ((unsigned*) unif_common_gpu + th * unif_len_1th));
@@ -138,16 +135,22 @@ void cblas_sgemm(
                 unif_set_uint (p + th * unif_len_1th + 13, n_threads);
             }
             th = 0;
+            unsigned P_remain = P;
             for (i = 0; i < p_div; i ++) {
+                const unsigned h = (P_remain + 16 * p_div - 1) / (16 * p_div);
+                unsigned R_remain = R;
                 for (j = 0; j < r_div; j ++) {
-                    unif_set_uint(p + th * unif_len_1th +  1, (i != p_div - 1) ? h : (P - i * h * 16) / 16);
+                    const unsigned w = (R_remain + 64 * r_div - 1) / (64 * r_div);
+                    unif_set_uint(p + th * unif_len_1th +  1, h);
                     unif_set_uint(p + th * unif_len_1th +  2, Q);
-                    unif_set_uint(p + th * unif_len_1th +  3, (j != r_div - 1) ? w : (R - j * w * 64) / 64);
-                    unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + i * 16 * h * k             ));
-                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  j * 64 * w));
-                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + i * 16 * h * n + j * 64 * w));
+                    unif_set_uint(p + th * unif_len_1th +  3, w);
+                    unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + (P - P_remain) * k                 ));
+                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                      (R - R_remain)));
+                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + (P - P_remain) * n + (R - R_remain)));
                     th ++;
+                    R_remain -= w * 64;
                 }
+                P_remain -= h * 16;
             }
         }
         launch_qpu_code_mailbox(n_threads, 1, 5e3,
