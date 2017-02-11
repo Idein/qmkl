@@ -21,32 +21,32 @@
 #define CblasTrans     (1 << 1)
 #define CblasConjTrans (1 << 2)
 
-	void blas_gemm_init();
-	void blas_gemm_finalize();
-	void blas_copy_init();
-	void blas_copy_finalize();
+    void blas_gemm_init();
+    void blas_gemm_finalize();
+    void blas_copy_init();
+    void blas_copy_finalize();
 
-	void cblas_sgemm(
-		const CBLAS_LAYOUT layout,
-		const CBLAS_TRANSPOSE transa,
-		const CBLAS_TRANSPOSE transb,
-		const MKL_INT m,
-		const MKL_INT n,
-		const MKL_INT k,
-		const float alpha,
-		const float *a,
-		const MKL_INT lda,
-		const float *b,
-		const MKL_INT ldb,
-		const float beta,
-		float *c,
-		const MKL_INT ldc);
+    void cblas_sgemm(
+        const CBLAS_LAYOUT layout,
+        const CBLAS_TRANSPOSE transa,
+        const CBLAS_TRANSPOSE transb,
+        const MKL_INT m,
+        const MKL_INT n,
+        const MKL_INT k,
+        const float alpha,
+        const float *a,
+        const MKL_INT lda,
+        const float *b,
+        const MKL_INT ldb,
+        const float beta,
+        float *c,
+        const MKL_INT ldc);
 
-	void cblas_scopy(
-		const MKL_INT n,
-		const float *x,
-		const MKL_INT incx,
-		float *y,
-		const MKL_INT incy);
+    void cblas_scopy(
+        const MKL_INT n,
+        const float *x,
+        const MKL_INT incx,
+        float *y,
+        const MKL_INT incy);
 
 #endif /* _QMKL_BLAS_H_ */

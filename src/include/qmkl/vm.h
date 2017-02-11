@@ -12,9 +12,9 @@
 
 #include "qmkl/types.h"
 
-	void vm_abs_init();
-	void vm_abs_finalize();
+    void vm_abs_init();
+    void vm_abs_finalize();
 
-	void vsAbs(MKL_INT n, const float *a, float *y);
+    void vsAbs(MKL_INT n, const float *a, float *y);
 
 #endif /* _QMKL_VM_H_ */

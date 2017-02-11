@@ -64,8 +64,8 @@ static void test_sgemm_RNN_ones(const int M, const int N, const int K) {
                 CU_ASSERT_EQUAL(K+1, (int)C[i*N+j]);
     }
     mkl_free(C);
-	mkl_free(B);
-	mkl_free(A);
+    mkl_free(B);
+    mkl_free(A);
 }
 
 void test_sgemm_RNN_ones_16x2_2x64()  { test_sgemm_RNN_ones(16,  64, 2); }

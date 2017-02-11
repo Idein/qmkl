@@ -20,36 +20,36 @@ static const unsigned code_sabs[] = {
 
 void vm_abs_init()
 {
-	if (++called.vm_abs != 1)
-		return;
+    if (++called.vm_abs != 1)
+        return;
 
-	unif_and_code_size_req(3 * (32 / 8), sizeof(code_sabs));
+    unif_and_code_size_req(3 * (32 / 8), sizeof(code_sabs));
 }
 
 void vm_abs_finalize()
 {
-	if (--called.vm_abs != 0)
-		return;
+    if (--called.vm_abs != 0)
+        return;
 }
 
 void vsAbs(MKL_INT n, const float *a, float *y)
 {
-	unsigned a_gpu = get_ptr_gpu_from_ptr_cpu(a);
-	unsigned y_gpu = get_ptr_gpu_from_ptr_cpu(y);
-	unsigned *p;
-	const int vector_length = 3 * 16 * 16;
+    unsigned a_gpu = get_ptr_gpu_from_ptr_cpu(a);
+    unsigned y_gpu = get_ptr_gpu_from_ptr_cpu(y);
+    unsigned *p;
+    const int vector_length = 3 * 16 * 16;
 
-	if (n <= vector_length)
-		error_fatal("n must be greater than %d\n", vector_length);
-	if (n % vector_length != 0)
-		error_fatal("n must be a multiple of %d\n", vector_length);
+    if (n <= vector_length)
+        error_fatal("n must be greater than %d\n", vector_length);
+    if (n % vector_length != 0)
+        error_fatal("n must be a multiple of %d\n", vector_length);
 
-	p = unif_common_cpu;
-	unif_add_uint(n / vector_length - 1, &p);
-	unif_add_uint(a_gpu,                 &p);
-	unif_add_uint(y_gpu,                 &p);
+    p = unif_common_cpu;
+    unif_add_uint(n / vector_length - 1, &p);
+    unif_add_uint(a_gpu,                 &p);
+    unif_add_uint(y_gpu,                 &p);
 
-	memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
+    memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
 
-	launch_qpu_code_mailbox(1, 1, 5e3, unif_common_gpu, code_common_gpu);
+    launch_qpu_code_mailbox(1, 1, 5e3, unif_common_gpu, code_common_gpu);
 }

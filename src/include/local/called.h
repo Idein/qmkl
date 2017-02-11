@@ -10,8 +10,8 @@
 #ifndef _LOCAL_CALLED_H_
 #define _LOCAL_CALLED_H_
 
-	extern struct called {
-		int main, mailbox, memory, launch_qpu_code, blas_gemm, blas_copy, vm_abs;
-	} called;
+    extern struct called {
+        int main, mailbox, memory, launch_qpu_code, blas_gemm, blas_copy, vm_abs;
+    } called;
 
 #endif /* _LOCAL_CALLED_H_ */

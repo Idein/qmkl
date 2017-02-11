@@ -14,13 +14,13 @@
 
 void error_fatal_core(const char *file, const int line, const char *fmt, ...)
 {
-	va_list ap;
+    va_list ap;
 
-	fprintf(stderr, "%s:%d: ", file, line);
+    fprintf(stderr, "%s:%d: ", file, line);
 
-	va_start(ap, fmt);
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
 
-	exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
 }
