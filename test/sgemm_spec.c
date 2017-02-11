@@ -22,27 +22,48 @@ static void test_sgemm_RNN_ones_16x2_2x192();
 static void test_sgemm_RNN_ones_16x2_2x256();
 static void test_sgemm_RNN_ones_16x2_2x320();
 static void test_sgemm_RNN_ones_16x2_2x384();
+static void test_sgemm_RNN_ones_16x2_2x448();
 static void test_sgemm_RNN_ones_32x2_2x64 ();
 static void test_sgemm_RNN_ones_32x2_2x128();
 static void test_sgemm_RNN_ones_32x2_2x192();
 static void test_sgemm_RNN_ones_32x2_2x256();
 static void test_sgemm_RNN_ones_32x2_2x320();
 static void test_sgemm_RNN_ones_32x2_2x384();
+static void test_sgemm_RNN_ones_32x2_2x448();
+static void test_sgemm_RNN_ones_48x2_2x64 ();
+static void test_sgemm_RNN_ones_48x2_2x128();
+static void test_sgemm_RNN_ones_48x2_2x192();
+static void test_sgemm_RNN_ones_48x2_2x256();
+static void test_sgemm_RNN_ones_48x2_2x320();
+static void test_sgemm_RNN_ones_48x2_2x384();
+static void test_sgemm_RNN_ones_48x2_2x448();
+static void test_sgemm_RNN_ones_96x363_363x3072();
 
 void suite_sgemm_RNN() {
     CU_pSuite suite = CU_add_suite("sgemm RNN", NULL, NULL);
+
     CU_add_test(suite, "ones 16x2 * 2x64" , test_sgemm_RNN_ones_16x2_2x64 );
     CU_add_test(suite, "ones 16x2 * 2x128", test_sgemm_RNN_ones_16x2_2x128);
     CU_add_test(suite, "ones 16x2 * 2x192", test_sgemm_RNN_ones_16x2_2x192);
     CU_add_test(suite, "ones 16x2 * 2x256", test_sgemm_RNN_ones_16x2_2x256);
     CU_add_test(suite, "ones 16x2 * 2x320", test_sgemm_RNN_ones_16x2_2x320);
     CU_add_test(suite, "ones 16x2 * 2x384", test_sgemm_RNN_ones_16x2_2x384);
+    CU_add_test(suite, "ones 16x2 * 2x448", test_sgemm_RNN_ones_16x2_2x448);
     CU_add_test(suite, "ones 32x2 * 2x64" , test_sgemm_RNN_ones_32x2_2x64 );
     CU_add_test(suite, "ones 32x2 * 2x128", test_sgemm_RNN_ones_32x2_2x128);
     CU_add_test(suite, "ones 32x2 * 2x192", test_sgemm_RNN_ones_32x2_2x192);
     CU_add_test(suite, "ones 32x2 * 2x256", test_sgemm_RNN_ones_32x2_2x256);
     CU_add_test(suite, "ones 32x2 * 2x320", test_sgemm_RNN_ones_32x2_2x320);
     CU_add_test(suite, "ones 32x2 * 2x384", test_sgemm_RNN_ones_32x2_2x384);
+    CU_add_test(suite, "ones 32x2 * 2x448", test_sgemm_RNN_ones_32x2_2x448);
+    CU_add_test(suite, "ones 48x2 * 2x64" , test_sgemm_RNN_ones_48x2_2x64 );
+    CU_add_test(suite, "ones 48x2 * 2x128", test_sgemm_RNN_ones_48x2_2x128);
+    CU_add_test(suite, "ones 48x2 * 2x192", test_sgemm_RNN_ones_48x2_2x192);
+    CU_add_test(suite, "ones 48x2 * 2x256", test_sgemm_RNN_ones_48x2_2x256);
+    CU_add_test(suite, "ones 48x2 * 2x320", test_sgemm_RNN_ones_48x2_2x320);
+    CU_add_test(suite, "ones 48x2 * 2x384", test_sgemm_RNN_ones_48x2_2x384);
+    CU_add_test(suite, "ones 48x2 * 2x448", test_sgemm_RNN_ones_48x2_2x448);
+    CU_add_test(suite, "ones 96x363 * 363x3072", test_sgemm_RNN_ones_96x363_363x3072);
 }
 
 static float* mkl_malloc_ones(const int m, const int n) {
@@ -74,9 +95,19 @@ void test_sgemm_RNN_ones_16x2_2x192() { test_sgemm_RNN_ones(16, 192, 2); }
 void test_sgemm_RNN_ones_16x2_2x256() { test_sgemm_RNN_ones(16, 256, 2); }
 void test_sgemm_RNN_ones_16x2_2x320() { test_sgemm_RNN_ones(16, 320, 2); }
 void test_sgemm_RNN_ones_16x2_2x384() { test_sgemm_RNN_ones(16, 384, 2); }
+void test_sgemm_RNN_ones_16x2_2x448() { test_sgemm_RNN_ones(16, 448, 2); }
 void test_sgemm_RNN_ones_32x2_2x64 () { test_sgemm_RNN_ones(32,  64, 2); }
 void test_sgemm_RNN_ones_32x2_2x128() { test_sgemm_RNN_ones(32, 128, 2); }
 void test_sgemm_RNN_ones_32x2_2x192() { test_sgemm_RNN_ones(32, 192, 2); }
 void test_sgemm_RNN_ones_32x2_2x256() { test_sgemm_RNN_ones(32, 256, 2); }
 void test_sgemm_RNN_ones_32x2_2x320() { test_sgemm_RNN_ones(32, 320, 2); }
 void test_sgemm_RNN_ones_32x2_2x384() { test_sgemm_RNN_ones(32, 384, 2); }
+void test_sgemm_RNN_ones_32x2_2x448() { test_sgemm_RNN_ones(32, 448, 2); }
+void test_sgemm_RNN_ones_48x2_2x64 () { test_sgemm_RNN_ones(48,  64, 2); }
+void test_sgemm_RNN_ones_48x2_2x128() { test_sgemm_RNN_ones(48, 128, 2); }
+void test_sgemm_RNN_ones_48x2_2x192() { test_sgemm_RNN_ones(48, 192, 2); }
+void test_sgemm_RNN_ones_48x2_2x256() { test_sgemm_RNN_ones(48, 256, 2); }
+void test_sgemm_RNN_ones_48x2_2x320() { test_sgemm_RNN_ones(48, 320, 2); }
+void test_sgemm_RNN_ones_48x2_2x384() { test_sgemm_RNN_ones(48, 384, 2); }
+void test_sgemm_RNN_ones_48x2_2x448() { test_sgemm_RNN_ones(48, 448, 2); }
+void test_sgemm_RNN_ones_96x363_363x3072() { test_sgemm_RNN_ones(96, 3072, 363); }
