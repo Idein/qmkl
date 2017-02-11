@@ -135,22 +135,26 @@ void cblas_sgemm(
                 unif_set_uint (p + th * unif_len_1th + 13, n_threads);
             }
             th = 0;
-            unsigned P_remain = P;
+            const unsigned h = (P + 16 * p_div - 1) / (16 * p_div);
+            const unsigned h_len = p_div - (16 * h * p_div - P) / 16;
+            const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
+            const unsigned w_len = r_div - (64 * w * r_div - R) / 64;
+            unsigned h_acc = 0;
             for (i = 0; i < p_div; i ++) {
-                const unsigned h = (P_remain + 16 * p_div - 1) / (16 * p_div);
-                unsigned R_remain = R;
+                unsigned hi = i < h_len ? h : h-1;
+                unsigned w_acc = 0;
                 for (j = 0; j < r_div; j ++) {
-                    const unsigned w = (R_remain + 64 * r_div - 1) / (64 * r_div);
-                    unif_set_uint(p + th * unif_len_1th +  1, h);
+                    unsigned wj = j < w_len ? w : w-1;
+                    unif_set_uint(p + th * unif_len_1th +  1, hi);
                     unif_set_uint(p + th * unif_len_1th +  2, Q);
-                    unif_set_uint(p + th * unif_len_1th +  3, w);
-                    unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + (P - P_remain) * k                 ));
-                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                      (R - R_remain)));
-                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + (P - P_remain) * n + (R - R_remain)));
+                    unif_set_uint(p + th * unif_len_1th +  3, wj);
+                    unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + 16 * h_acc * k             ));
+                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  64 * w_acc));
+                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + 16 * h_acc * n + 64 * w_acc));
                     th ++;
-                    R_remain -= w * 64;
+                    w_acc += wj;
                 }
-                P_remain -= h * 16;
+                h_acc += hi;
             }
         }
         launch_qpu_code_mailbox(n_threads, 1, 5e3,
