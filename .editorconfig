@@ -12,6 +12,11 @@ insert_final_newline = true
 indent_style = space
 indent_size = 4
 
+[{src/include/local/vcio.h,src/include/qmkl/raspberrypi-firmware.h}]
+indent_style = tab
+indent_size = 8
+tab_size = 8
+
 [*.{qasm2m4,qasm2,qbin,qhex}]
 indent_style = space
 indent_size = 4
