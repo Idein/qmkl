@@ -43,6 +43,13 @@ target_link_libraries (
     qmkl
 )
 
+
+include(FindPNG)
+
+if(PNG_FOUND)
+option (HAVE_PNG  "have libpng" ON)
+endif(PNG_FOUND)
+
 include (../cmake/FindCUnit.cmake)
 
 if(CUNIT_FOUND)
@@ -52,6 +59,9 @@ add_executable (
 )
 target_link_libraries (
     sgemm_spec
-    LINK_PUBLIC qmkl ${CUNIT_LIBRARIES}
+    LINK_PUBLIC qmkl ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
 )
 endif(CUNIT_FOUND)
+
+configure_file (${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+                ${CMAKE_CURRENT_BINARY_DIR}/config.h)

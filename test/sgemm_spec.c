@@ -1,8 +1,38 @@
+#include "config.h"
 #include <unistd.h>
 #include <stdlib.h>
+#ifdef HAVE_PNG
+#include <png.h>
+#endif
 #include <CUnit/Basic.h>
 #include <CUnit/Console.h>
 #include "mkl.h"
+
+
+#ifdef HAVE_PNG
+static void visualize(const char* file, const int h, const int w, float* p) {
+    png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    png_infop info = png_create_info_struct(png);
+    FILE* fp = fopen(file, "w");
+    png_init_io(png, fp);
+    png_set_IHDR(png, info, w, h, 8,
+                 PNG_COLOR_TYPE_GRAY, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
+                 PNG_FILTER_TYPE_DEFAULT);
+    png_bytepp rows = png_malloc(png, sizeof(png_bytep) * h);
+    png_set_rows(png, info, rows);
+    int i, j;
+    for (i = 0; i < h; ++i) rows[i] = png_malloc(png, w);
+    for (i = 0; i < h; ++i) {
+        for (j = 0; j < w; ++j) {
+            rows[i][j] = (png_byte)p[i*w+j]; // p[*] : 0 ~ 255
+        }
+    }
+    png_write_png(png, info, PNG_TRANSFORM_IDENTITY, NULL);
+    for (i = 0; i < h; ++i) png_free(png, rows[i]);
+    png_free(png, rows);
+    png_destroy_write_struct(&png, &info);
+}
+#endif
 
 static void suite_sgemm_RNN();
 
@@ -140,6 +170,17 @@ static void test_sgemm_RNN_ones(const int M, const int N, const int K) {
             for (j = 0; j < N; ++j)
                 CU_ASSERT_EQUAL(K+1, (int)C[i*N+j]);
     }
+#ifdef HAVE_PNG
+    {
+        int i, j;
+        for (i = 0; i < M; ++i)
+            for (j = 0; j < N; ++j)
+                C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+    }
+    char file[256] = {0};
+    sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+    visualize(file, M, N, C);
+#endif
     mkl_free(C);
     mkl_free(B);
     mkl_free(A);
