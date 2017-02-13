@@ -39,5 +39,6 @@ install (
         include/qmkl/launch_qpu_code.h
         include/qmkl/blas.h
         include/qmkl/vm.h
+        include/qmkl/error.h
     DESTINATION include/qmkl
 )
