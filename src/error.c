@@ -8,6 +8,7 @@
  */
 
 #include "qmkl.h"
+#include "local/common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -23,4 +24,12 @@ void error_fatal_core(const char *file, const int line, const char *fmt, ...)
     va_end(ap);
 
     exit(EXIT_FAILURE);
+}
+
+void xerbla(const char *strname, const int *info, const int len)
+{
+    UNUSED(len);
+
+    /* xerbla of Intel MKL prints error message to stdout, but we don't. */
+    fprintf(stderr, "QMKL error: Parameter %d was incorrect on entry to %s.\n", *info, strname);
 }

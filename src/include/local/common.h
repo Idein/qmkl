@@ -18,4 +18,6 @@
 
     void unif_and_code_size_req(const size_t unif_size_req, const size_t code_size_req);
 
+#define UNUSED(x) ((void) x)
+
 #endif /* _LOCAL_COMMON_H_ */
