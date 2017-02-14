@@ -26,6 +26,19 @@ void error_fatal_core(const char *file, const int line, const char *fmt, ...)
     exit(EXIT_FAILURE);
 }
 
+void xerbla_local_core(const int info, const char *fmt, ...)
+{
+    int len;
+    char str[0x100];
+    va_list ap;
+
+    va_start(ap, fmt);
+    len = vsnprintf(str, sizeof(str), fmt, ap);
+    va_end(ap);
+
+    xerbla(str, &info, len);
+}
+
 void xerbla(const char *strname, const int *info, const int len)
 {
     UNUSED(len);

@@ -27,6 +27,7 @@ struct called called = {
 static size_t unif_size = 0, code_size = 0;
 MKL_UINT *unif_common_cpu = NULL, *code_common_cpu = NULL;
 MKL_UINT unif_common_gpu = 0, code_common_gpu = 0;
+void (*exit_handler)(int why) = exit;
 
 void qmkl_init()
 {

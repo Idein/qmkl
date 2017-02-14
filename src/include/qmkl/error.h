@@ -10,4 +10,6 @@
 #ifndef _QMKL_ERROR_H_
 #define _QMKL_ERROR_H_
 
+    void xerbla(const char *strname, const int *info, const int len);
+
 #endif /* _QMKL_ERROR_H_ */
