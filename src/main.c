@@ -35,10 +35,6 @@ void qmkl_init()
     if (++called.main != 1)
         return;
 
-    ret_int = atexit(qmkl_finalize);
-    if (ret_int != 0)
-        error_fatal("atexit returned %d\n", ret_int);
-
     mailbox_init();
     memory_init();
     launch_qpu_code_init();
@@ -66,6 +62,12 @@ void qmkl_init()
     if (code_size != 0) {
         code_common_cpu = mkl_malloc(code_size, 4096);
         code_common_gpu = get_ptr_gpu_from_ptr_cpu(code_common_cpu);
+    }
+
+    ret_int = atexit(qmkl_finalize);
+    if (ret_int != 0) {
+        xerbla_local(ret_int);
+        exit_handler(EXIT_FAILURE);
     }
 }
 
