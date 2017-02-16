@@ -47,13 +47,20 @@ int main() {
     return (result ? 1 : 0);
 }
 
+static void test_sgemm_RNN_ones_16x2_2x16();
+static void test_sgemm_RNN_ones_16x2_2x32();
+static void test_sgemm_RNN_ones_16x2_2x48();
 static void test_sgemm_RNN_ones_16x2_2x64();
+static void test_sgemm_RNN_ones_16x2_2x80();
 static void test_sgemm_RNN_ones_16x2_2x128();
 static void test_sgemm_RNN_ones_16x2_2x192();
 static void test_sgemm_RNN_ones_16x2_2x256();
 static void test_sgemm_RNN_ones_16x2_2x320();
 static void test_sgemm_RNN_ones_16x2_2x384();
 static void test_sgemm_RNN_ones_16x2_2x448();
+static void test_sgemm_RNN_ones_32x2_2x16();
+static void test_sgemm_RNN_ones_32x2_2x32();
+static void test_sgemm_RNN_ones_32x2_2x48();
 static void test_sgemm_RNN_ones_32x2_2x64 ();
 static void test_sgemm_RNN_ones_32x2_2x128();
 static void test_sgemm_RNN_ones_32x2_2x192();
@@ -61,6 +68,9 @@ static void test_sgemm_RNN_ones_32x2_2x256();
 static void test_sgemm_RNN_ones_32x2_2x320();
 static void test_sgemm_RNN_ones_32x2_2x384();
 static void test_sgemm_RNN_ones_32x2_2x448();
+static void test_sgemm_RNN_ones_48x2_2x16();
+static void test_sgemm_RNN_ones_48x2_2x32();
+static void test_sgemm_RNN_ones_48x2_2x48();
 static void test_sgemm_RNN_ones_48x2_2x64 ();
 static void test_sgemm_RNN_ones_48x2_2x128();
 static void test_sgemm_RNN_ones_48x2_2x192();
@@ -68,8 +78,12 @@ static void test_sgemm_RNN_ones_48x2_2x256();
 static void test_sgemm_RNN_ones_48x2_2x320();
 static void test_sgemm_RNN_ones_48x2_2x384();
 static void test_sgemm_RNN_ones_48x2_2x448();
+static void test_sgemm_RNN_ones_816x2_2x816(); // 816 = 64 * 12 + 16 * 3
 static void test_sgemm_RNN_ones_96x363_363x3072();
 
+static void test_sgemm_RNN_randoms_16x2_2x16();
+static void test_sgemm_RNN_randoms_16x2_2x32();
+static void test_sgemm_RNN_randoms_16x2_2x48();
 static void test_sgemm_RNN_randoms_16x2_2x64();
 static void test_sgemm_RNN_randoms_16x2_2x128();
 static void test_sgemm_RNN_randoms_16x2_2x192();
@@ -77,6 +91,9 @@ static void test_sgemm_RNN_randoms_16x2_2x256();
 static void test_sgemm_RNN_randoms_16x2_2x320();
 static void test_sgemm_RNN_randoms_16x2_2x384();
 static void test_sgemm_RNN_randoms_16x2_2x448();
+static void test_sgemm_RNN_randoms_32x2_2x16();
+static void test_sgemm_RNN_randoms_32x2_2x32();
+static void test_sgemm_RNN_randoms_32x2_2x48();
 static void test_sgemm_RNN_randoms_32x2_2x64 ();
 static void test_sgemm_RNN_randoms_32x2_2x128();
 static void test_sgemm_RNN_randoms_32x2_2x192();
@@ -84,6 +101,9 @@ static void test_sgemm_RNN_randoms_32x2_2x256();
 static void test_sgemm_RNN_randoms_32x2_2x320();
 static void test_sgemm_RNN_randoms_32x2_2x384();
 static void test_sgemm_RNN_randoms_32x2_2x448();
+static void test_sgemm_RNN_randoms_48x2_2x16();
+static void test_sgemm_RNN_randoms_48x2_2x32();
+static void test_sgemm_RNN_randoms_48x2_2x48();
 static void test_sgemm_RNN_randoms_48x2_2x64 ();
 static void test_sgemm_RNN_randoms_48x2_2x128();
 static void test_sgemm_RNN_randoms_48x2_2x192();
@@ -91,6 +111,7 @@ static void test_sgemm_RNN_randoms_48x2_2x256();
 static void test_sgemm_RNN_randoms_48x2_2x320();
 static void test_sgemm_RNN_randoms_48x2_2x384();
 static void test_sgemm_RNN_randoms_48x2_2x448();
+static void test_sgemm_RNN_randoms_816x2_2x816();
 static void test_sgemm_RNN_randoms_96x363_363x3072();
 
 int setup_suite_sgemm_RNN() {
@@ -105,13 +126,20 @@ int teardown_suite_sgemm_RNN() {
 void suite_sgemm_RNN() {
     CU_pSuite suite = CU_add_suite("sgemm RNN", setup_suite_sgemm_RNN, teardown_suite_sgemm_RNN);
 
+    CU_add_test(suite, "ones 16x2 * 2x16" , test_sgemm_RNN_ones_16x2_2x16 );
+    CU_add_test(suite, "ones 16x2 * 2x32" , test_sgemm_RNN_ones_16x2_2x32 );
+    CU_add_test(suite, "ones 16x2 * 2x48" , test_sgemm_RNN_ones_16x2_2x48 );
     CU_add_test(suite, "ones 16x2 * 2x64" , test_sgemm_RNN_ones_16x2_2x64 );
+    CU_add_test(suite, "ones 16x2 * 2x80" , test_sgemm_RNN_ones_16x2_2x80 );
     CU_add_test(suite, "ones 16x2 * 2x128", test_sgemm_RNN_ones_16x2_2x128);
     CU_add_test(suite, "ones 16x2 * 2x192", test_sgemm_RNN_ones_16x2_2x192);
     CU_add_test(suite, "ones 16x2 * 2x256", test_sgemm_RNN_ones_16x2_2x256);
     CU_add_test(suite, "ones 16x2 * 2x320", test_sgemm_RNN_ones_16x2_2x320);
     CU_add_test(suite, "ones 16x2 * 2x384", test_sgemm_RNN_ones_16x2_2x384);
     CU_add_test(suite, "ones 16x2 * 2x448", test_sgemm_RNN_ones_16x2_2x448);
+    CU_add_test(suite, "ones 32x2 * 2x16" , test_sgemm_RNN_ones_32x2_2x16 );
+    CU_add_test(suite, "ones 32x2 * 2x32" , test_sgemm_RNN_ones_32x2_2x32 );
+    CU_add_test(suite, "ones 32x2 * 2x48" , test_sgemm_RNN_ones_32x2_2x48 );
     CU_add_test(suite, "ones 32x2 * 2x64" , test_sgemm_RNN_ones_32x2_2x64 );
     CU_add_test(suite, "ones 32x2 * 2x128", test_sgemm_RNN_ones_32x2_2x128);
     CU_add_test(suite, "ones 32x2 * 2x192", test_sgemm_RNN_ones_32x2_2x192);
@@ -119,6 +147,9 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "ones 32x2 * 2x320", test_sgemm_RNN_ones_32x2_2x320);
     CU_add_test(suite, "ones 32x2 * 2x384", test_sgemm_RNN_ones_32x2_2x384);
     CU_add_test(suite, "ones 32x2 * 2x448", test_sgemm_RNN_ones_32x2_2x448);
+    CU_add_test(suite, "ones 48x2 * 2x16" , test_sgemm_RNN_ones_48x2_2x16 );
+    CU_add_test(suite, "ones 48x2 * 2x32" , test_sgemm_RNN_ones_48x2_2x32 );
+    CU_add_test(suite, "ones 48x2 * 2x48" , test_sgemm_RNN_ones_48x2_2x48 );
     CU_add_test(suite, "ones 48x2 * 2x64" , test_sgemm_RNN_ones_48x2_2x64 );
     CU_add_test(suite, "ones 48x2 * 2x128", test_sgemm_RNN_ones_48x2_2x128);
     CU_add_test(suite, "ones 48x2 * 2x192", test_sgemm_RNN_ones_48x2_2x192);
@@ -126,8 +157,12 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "ones 48x2 * 2x320", test_sgemm_RNN_ones_48x2_2x320);
     CU_add_test(suite, "ones 48x2 * 2x384", test_sgemm_RNN_ones_48x2_2x384);
     CU_add_test(suite, "ones 48x2 * 2x448", test_sgemm_RNN_ones_48x2_2x448);
+    CU_add_test(suite, "ones 816x2 * 2x816", test_sgemm_RNN_ones_816x2_2x816);
     CU_add_test(suite, "ones 96x363 * 363x3072", test_sgemm_RNN_ones_96x363_363x3072);
 
+    CU_add_test(suite, "randoms 16x2 * 2x16" , test_sgemm_RNN_randoms_16x2_2x16 );
+    CU_add_test(suite, "randoms 16x2 * 2x32" , test_sgemm_RNN_randoms_16x2_2x32 );
+    CU_add_test(suite, "randoms 16x2 * 2x48" , test_sgemm_RNN_randoms_16x2_2x48 );
     CU_add_test(suite, "randoms 16x2 * 2x64" , test_sgemm_RNN_randoms_16x2_2x64 );
     CU_add_test(suite, "randoms 16x2 * 2x128", test_sgemm_RNN_randoms_16x2_2x128);
     CU_add_test(suite, "randoms 16x2 * 2x192", test_sgemm_RNN_randoms_16x2_2x192);
@@ -135,6 +170,9 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "randoms 16x2 * 2x320", test_sgemm_RNN_randoms_16x2_2x320);
     CU_add_test(suite, "randoms 16x2 * 2x384", test_sgemm_RNN_randoms_16x2_2x384);
     CU_add_test(suite, "randoms 16x2 * 2x448", test_sgemm_RNN_randoms_16x2_2x448);
+    CU_add_test(suite, "randoms 32x2 * 2x16" , test_sgemm_RNN_randoms_32x2_2x16 );
+    CU_add_test(suite, "randoms 32x2 * 2x32" , test_sgemm_RNN_randoms_32x2_2x32 );
+    CU_add_test(suite, "randoms 32x2 * 2x48" , test_sgemm_RNN_randoms_32x2_2x48 );
     CU_add_test(suite, "randoms 32x2 * 2x64" , test_sgemm_RNN_randoms_32x2_2x64 );
     CU_add_test(suite, "randoms 32x2 * 2x128", test_sgemm_RNN_randoms_32x2_2x128);
     CU_add_test(suite, "randoms 32x2 * 2x192", test_sgemm_RNN_randoms_32x2_2x192);
@@ -142,6 +180,9 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "randoms 32x2 * 2x320", test_sgemm_RNN_randoms_32x2_2x320);
     CU_add_test(suite, "randoms 32x2 * 2x384", test_sgemm_RNN_randoms_32x2_2x384);
     CU_add_test(suite, "randoms 32x2 * 2x448", test_sgemm_RNN_randoms_32x2_2x448);
+    CU_add_test(suite, "randoms 48x2 * 2x16" , test_sgemm_RNN_randoms_48x2_2x16 );
+    CU_add_test(suite, "randoms 48x2 * 2x32" , test_sgemm_RNN_randoms_48x2_2x32 );
+    CU_add_test(suite, "randoms 48x2 * 2x48" , test_sgemm_RNN_randoms_48x2_2x48 );
     CU_add_test(suite, "randoms 48x2 * 2x64" , test_sgemm_RNN_randoms_48x2_2x64 );
     CU_add_test(suite, "randoms 48x2 * 2x128", test_sgemm_RNN_randoms_48x2_2x128);
     CU_add_test(suite, "randoms 48x2 * 2x192", test_sgemm_RNN_randoms_48x2_2x192);
@@ -149,6 +190,7 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "randoms 48x2 * 2x320", test_sgemm_RNN_randoms_48x2_2x320);
     CU_add_test(suite, "randoms 48x2 * 2x384", test_sgemm_RNN_randoms_48x2_2x384);
     CU_add_test(suite, "randoms 48x2 * 2x448", test_sgemm_RNN_randoms_48x2_2x448);
+    CU_add_test(suite, "randoms 816x2 * 2x816", test_sgemm_RNN_randoms_816x2_2x816);
     CU_add_test(suite, "randoms 96x363 * 363x3072", test_sgemm_RNN_randoms_96x363_363x3072);
 }
 
@@ -186,13 +228,20 @@ static void test_sgemm_RNN_ones(const int M, const int N, const int K) {
     mkl_free(A);
 }
 
+void test_sgemm_RNN_ones_16x2_2x16()  { test_sgemm_RNN_ones(16,  16, 2); }
+void test_sgemm_RNN_ones_16x2_2x32()  { test_sgemm_RNN_ones(16,  32, 2); }
+void test_sgemm_RNN_ones_16x2_2x48()  { test_sgemm_RNN_ones(16,  48, 2); }
 void test_sgemm_RNN_ones_16x2_2x64()  { test_sgemm_RNN_ones(16,  64, 2); }
+void test_sgemm_RNN_ones_16x2_2x80()  { test_sgemm_RNN_ones(16,  80, 2); }
 void test_sgemm_RNN_ones_16x2_2x128() { test_sgemm_RNN_ones(16, 128, 2); }
 void test_sgemm_RNN_ones_16x2_2x192() { test_sgemm_RNN_ones(16, 192, 2); }
 void test_sgemm_RNN_ones_16x2_2x256() { test_sgemm_RNN_ones(16, 256, 2); }
 void test_sgemm_RNN_ones_16x2_2x320() { test_sgemm_RNN_ones(16, 320, 2); }
 void test_sgemm_RNN_ones_16x2_2x384() { test_sgemm_RNN_ones(16, 384, 2); }
 void test_sgemm_RNN_ones_16x2_2x448() { test_sgemm_RNN_ones(16, 448, 2); }
+void test_sgemm_RNN_ones_32x2_2x16 () { test_sgemm_RNN_ones(32,  16, 2); }
+void test_sgemm_RNN_ones_32x2_2x32 () { test_sgemm_RNN_ones(32,  32, 2); }
+void test_sgemm_RNN_ones_32x2_2x48 () { test_sgemm_RNN_ones(32,  48, 2); }
 void test_sgemm_RNN_ones_32x2_2x64 () { test_sgemm_RNN_ones(32,  64, 2); }
 void test_sgemm_RNN_ones_32x2_2x128() { test_sgemm_RNN_ones(32, 128, 2); }
 void test_sgemm_RNN_ones_32x2_2x192() { test_sgemm_RNN_ones(32, 192, 2); }
@@ -200,6 +249,9 @@ void test_sgemm_RNN_ones_32x2_2x256() { test_sgemm_RNN_ones(32, 256, 2); }
 void test_sgemm_RNN_ones_32x2_2x320() { test_sgemm_RNN_ones(32, 320, 2); }
 void test_sgemm_RNN_ones_32x2_2x384() { test_sgemm_RNN_ones(32, 384, 2); }
 void test_sgemm_RNN_ones_32x2_2x448() { test_sgemm_RNN_ones(32, 448, 2); }
+void test_sgemm_RNN_ones_48x2_2x16 () { test_sgemm_RNN_ones(48,  16, 2); }
+void test_sgemm_RNN_ones_48x2_2x32 () { test_sgemm_RNN_ones(48,  32, 2); }
+void test_sgemm_RNN_ones_48x2_2x48 () { test_sgemm_RNN_ones(48,  48, 2); }
 void test_sgemm_RNN_ones_48x2_2x64 () { test_sgemm_RNN_ones(48,  64, 2); }
 void test_sgemm_RNN_ones_48x2_2x128() { test_sgemm_RNN_ones(48, 128, 2); }
 void test_sgemm_RNN_ones_48x2_2x192() { test_sgemm_RNN_ones(48, 192, 2); }
@@ -207,6 +259,7 @@ void test_sgemm_RNN_ones_48x2_2x256() { test_sgemm_RNN_ones(48, 256, 2); }
 void test_sgemm_RNN_ones_48x2_2x320() { test_sgemm_RNN_ones(48, 320, 2); }
 void test_sgemm_RNN_ones_48x2_2x384() { test_sgemm_RNN_ones(48, 384, 2); }
 void test_sgemm_RNN_ones_48x2_2x448() { test_sgemm_RNN_ones(48, 448, 2); }
+void test_sgemm_RNN_ones_816x2_2x816() { test_sgemm_RNN_ones(816, 816, 2); }
 void test_sgemm_RNN_ones_96x363_363x3072() { test_sgemm_RNN_ones(96, 3072, 363); }
 
 static float rand_in_range(float from, float to) {
@@ -263,6 +316,9 @@ static void test_sgemm_RNN_randoms(const int M, const int N, const int K) {
     mkl_free(A);
 }
 
+void test_sgemm_RNN_randoms_16x2_2x16()  { test_sgemm_RNN_randoms(16,  16, 2); }
+void test_sgemm_RNN_randoms_16x2_2x32()  { test_sgemm_RNN_randoms(16,  32, 2); }
+void test_sgemm_RNN_randoms_16x2_2x48()  { test_sgemm_RNN_randoms(16,  48, 2); }
 void test_sgemm_RNN_randoms_16x2_2x64()  { test_sgemm_RNN_randoms(16,  64, 2); }
 void test_sgemm_RNN_randoms_16x2_2x128() { test_sgemm_RNN_randoms(16, 128, 2); }
 void test_sgemm_RNN_randoms_16x2_2x192() { test_sgemm_RNN_randoms(16, 192, 2); }
@@ -270,6 +326,9 @@ void test_sgemm_RNN_randoms_16x2_2x256() { test_sgemm_RNN_randoms(16, 256, 2); }
 void test_sgemm_RNN_randoms_16x2_2x320() { test_sgemm_RNN_randoms(16, 320, 2); }
 void test_sgemm_RNN_randoms_16x2_2x384() { test_sgemm_RNN_randoms(16, 384, 2); }
 void test_sgemm_RNN_randoms_16x2_2x448() { test_sgemm_RNN_randoms(16, 448, 2); }
+void test_sgemm_RNN_randoms_32x2_2x16()  { test_sgemm_RNN_randoms(32,  16, 2); }
+void test_sgemm_RNN_randoms_32x2_2x32()  { test_sgemm_RNN_randoms(32,  32, 2); }
+void test_sgemm_RNN_randoms_32x2_2x48()  { test_sgemm_RNN_randoms(32,  48, 2); }
 void test_sgemm_RNN_randoms_32x2_2x64 () { test_sgemm_RNN_randoms(32,  64, 2); }
 void test_sgemm_RNN_randoms_32x2_2x128() { test_sgemm_RNN_randoms(32, 128, 2); }
 void test_sgemm_RNN_randoms_32x2_2x192() { test_sgemm_RNN_randoms(32, 192, 2); }
@@ -277,6 +336,9 @@ void test_sgemm_RNN_randoms_32x2_2x256() { test_sgemm_RNN_randoms(32, 256, 2); }
 void test_sgemm_RNN_randoms_32x2_2x320() { test_sgemm_RNN_randoms(32, 320, 2); }
 void test_sgemm_RNN_randoms_32x2_2x384() { test_sgemm_RNN_randoms(32, 384, 2); }
 void test_sgemm_RNN_randoms_32x2_2x448() { test_sgemm_RNN_randoms(32, 448, 2); }
+void test_sgemm_RNN_randoms_48x2_2x16()  { test_sgemm_RNN_randoms(48,  16, 2); }
+void test_sgemm_RNN_randoms_48x2_2x32()  { test_sgemm_RNN_randoms(48,  32, 2); }
+void test_sgemm_RNN_randoms_48x2_2x48()  { test_sgemm_RNN_randoms(48,  48, 2); }
 void test_sgemm_RNN_randoms_48x2_2x64 () { test_sgemm_RNN_randoms(48,  64, 2); }
 void test_sgemm_RNN_randoms_48x2_2x128() { test_sgemm_RNN_randoms(48, 128, 2); }
 void test_sgemm_RNN_randoms_48x2_2x192() { test_sgemm_RNN_randoms(48, 192, 2); }
@@ -284,4 +346,5 @@ void test_sgemm_RNN_randoms_48x2_2x256() { test_sgemm_RNN_randoms(48, 256, 2); }
 void test_sgemm_RNN_randoms_48x2_2x320() { test_sgemm_RNN_randoms(48, 320, 2); }
 void test_sgemm_RNN_randoms_48x2_2x384() { test_sgemm_RNN_randoms(48, 384, 2); }
 void test_sgemm_RNN_randoms_48x2_2x448() { test_sgemm_RNN_randoms(48, 448, 2); }
+void test_sgemm_RNN_randoms_816x2_2x816() { test_sgemm_RNN_randoms(816, 816, 2); }
 void test_sgemm_RNN_randoms_96x363_363x3072() { test_sgemm_RNN_randoms(96, 3072, 363); }
