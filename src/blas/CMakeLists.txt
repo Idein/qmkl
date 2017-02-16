@@ -5,5 +5,5 @@ add_library (
         copy.c
 )
 
-qbin_dep_on_c (gemm.c sgemm_1thread sgemm)
+qbin_dep_on_c (gemm.c sgemm_16x64_1thread sgemm_16x64 sgemm_16x16)
 qasm2m4_dep_on_c (copy.c scopy)

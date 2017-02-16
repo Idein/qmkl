@@ -15,11 +15,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const unsigned code_sgemm[] = {
-#include "sgemm.qhex"
+static const unsigned code_sgemm_16x64[] = {
+#include "sgemm_16x64.qhex"
 };
-static const unsigned code_sgemm_1thread[] = {
-#include "sgemm_1thread.qhex"
+static const unsigned code_sgemm_16x16[] = {
+#include "sgemm_16x16.qhex"
+};
+static const unsigned code_sgemm_16x64_1thread[] = {
+#include "sgemm_16x64_1thread.qhex"
 };
 
 static const int unif_len_1th = 14;
@@ -30,8 +33,9 @@ void blas_gemm_init()
     if (++called.blas_gemm != 1)
         return;
 
-    unif_and_code_size_req(12 * (32 / 8), sizeof(code_sgemm_1thread));
-    unif_and_code_size_req(unif_len_1th * (32 / 8), sizeof(code_sgemm));
+    unif_and_code_size_req(12 * (32 / 8), sizeof(code_sgemm_16x64_1thread));
+    unif_and_code_size_req(unif_len_1th * (32 / 8), sizeof(code_sgemm_16x64));
+    unif_and_code_size_req(unif_len_1th * (32 / 8), sizeof(code_sgemm_16x16));
 }
 
 void blas_gemm_finalize()
@@ -81,46 +85,121 @@ void cblas_sgemm(
     if (P % 16 != 0)
         error_fatal("P must be a multiple of 16\n");
 
-    if (R % 64 != 0)
-        error_fatal("R must be a multiple of 64\n");
+    if (R % 16 != 0)
+        error_fatal("R must be a multiple of 16\n");
 
-    unsigned r_div = 6;
-    if (R < r_div*64) r_div = 4;
-    if (R < r_div*64) r_div = 3;
-    if (R < r_div*64) r_div = 2;
-    if (R < r_div*64) r_div = 1;
+    const unsigned R1 = R / 64 * 64;
+    if (R / 64) {
+        // for leftmost 16Mx64N area
+        const unsigned P1 = P / 16 * 16;
 
-    unsigned p_div = 12 / r_div;
-    for (; 2 <= p_div; --p_div) {
-        if (P >= p_div*16) break;
+        unsigned r_div = 6;
+        if (R1 < r_div*64) r_div = 4;
+        if (R1 < r_div*64) r_div = 3;
+        if (R1 < r_div*64) r_div = 2;
+        if (R1 < r_div*64) r_div = 1;
+
+        unsigned p_div = 12 / r_div;
+        for (; 2 <= p_div; --p_div) {
+            if (P1 >= p_div*16) break;
+        }
+
+        const unsigned n_threads = p_div * r_div;
+
+        if (n_threads == 1) {
+            /* single threaded sgemm */
+
+            memcpy(code_common_cpu, code_sgemm_16x64_1thread, sizeof(code_sgemm_16x64_1thread));
+
+            p = unif_common_cpu;
+            unif_add_uint (unif_common_gpu, &p);
+            unif_add_uint (P1 / 16,         &p);
+            unif_add_uint (Q,               &p);
+            unif_add_uint (R1 / 64,         &p);
+            unif_add_uint (a_gpu,           &p);
+            unif_add_uint (b_gpu,           &p);
+            unif_add_uint (c_gpu,           &p);
+            unif_add_uint (Q * (32 / 8),    &p);
+            unif_add_uint (R * (32 / 8),    &p);
+            unif_add_uint (R * (32 / 8),    &p);
+            unif_add_float(ALPHA,           &p);
+            unif_add_float(BETA,            &p);
+            launch_qpu_code_mailbox(1, 1, 100e3, unif_common_gpu, code_common_gpu);
+
+        } else {
+            /* multi threads sgemm */
+
+            memcpy(code_common_cpu, code_sgemm_16x64, sizeof(code_sgemm_16x64));
+            p = unif_common_cpu;
+            {
+                unsigned th, i, j;
+                for (th = 0; th < n_threads; th ++) {
+                    unif_set_uint (p + th * unif_len_1th +  0, (unsigned) ((unsigned*) unif_common_gpu + th * unif_len_1th));
+                    unif_set_uint (p + th * unif_len_1th +  7, Q * (32 / 8));
+                    unif_set_uint (p + th * unif_len_1th +  8, R * (32 / 8));
+                    unif_set_uint (p + th * unif_len_1th +  9, R * (32 / 8));
+                    unif_set_float(p + th * unif_len_1th + 10, ALPHA);
+                    unif_set_float(p + th * unif_len_1th + 11, BETA);
+                    unif_set_uint (p + th * unif_len_1th + 12, th);
+                    unif_set_uint (p + th * unif_len_1th + 13, n_threads);
+                }
+                th = 0;
+                const unsigned h = (P1 + 16 * p_div - 1) / (16 * p_div);
+                const unsigned h_len = p_div - (16 * h * p_div - P1) / 16;
+                const unsigned w = (R1 + 64 * r_div - 1) / (64 * r_div);
+                const unsigned w_len = r_div - (64 * w * r_div - R1) / 64;
+                unsigned h_acc = 0;
+                for (i = 0; i < p_div; i ++) {
+                    unsigned hi = i < h_len ? h : h-1;
+                    unsigned w_acc = 0;
+                    for (j = 0; j < r_div; j ++) {
+                        unsigned wj = j < w_len ? w : w-1;
+                        unif_set_uint(p + th * unif_len_1th +  1, hi);
+                        unif_set_uint(p + th * unif_len_1th +  2, Q);
+                        unif_set_uint(p + th * unif_len_1th +  3, wj);
+                        unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + 16 * h_acc * k             ));
+                        unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  64 * w_acc));
+                        unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + 16 * h_acc * n + 64 * w_acc));
+                        th ++;
+                        w_acc += wj;
+                    }
+                    h_acc += hi;
+                }
+            }
+            launch_qpu_code_mailbox(n_threads, 1, 5e3,
+                                    (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  2 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  3 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  4 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  5 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  6 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  7 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  8 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu +  9 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
+                                    (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
+            );
+        }
     }
 
-    const unsigned n_threads = p_div * r_div;
+    if (R1 < R) {
+        // for rightmost 16Mx16N area (N < 4)
+        const unsigned P2 = P / 16 * 16;
+        const unsigned R2 = R - R1;
 
-    if (n_threads == 1) {
-        /* single threaded sgemm */
+        unsigned r_div = R2 / 16;
+        if (r_div > 3) r_div = 4;
 
-        memcpy(code_common_cpu, code_sgemm_1thread, sizeof(code_sgemm_1thread));
+        unsigned p_div = 12 / r_div;
+        for (; 2 <= p_div; --p_div) {
+            if (P2 >= p_div*16) break;
+        }
 
-        p = unif_common_cpu;
-        unif_add_uint (unif_common_gpu, &p);
-        unif_add_uint (P / 16,          &p);
-        unif_add_uint (Q,               &p);
-        unif_add_uint (R / 64,          &p);
-        unif_add_uint (a_gpu,           &p);
-        unif_add_uint (b_gpu,           &p);
-        unif_add_uint (c_gpu,           &p);
-        unif_add_uint (Q * (32 / 8),    &p);
-        unif_add_uint (R * (32 / 8),    &p);
-        unif_add_uint (R * (32 / 8),    &p);
-        unif_add_float(ALPHA,           &p);
-        unif_add_float(BETA,            &p);
-        launch_qpu_code_mailbox(1, 1, 100e3, unif_common_gpu, code_common_gpu);
+        const unsigned n_threads = p_div * r_div;
 
-    } else {
-        /* multi threads sgemm */
 
-        memcpy(code_common_cpu, code_sgemm, sizeof(code_sgemm));
+        memcpy(code_common_cpu, code_sgemm_16x16, sizeof(code_sgemm_16x16));
         p = unif_common_cpu;
         {
             unsigned th, i, j;
@@ -135,10 +214,10 @@ void cblas_sgemm(
                 unif_set_uint (p + th * unif_len_1th + 13, n_threads);
             }
             th = 0;
-            const unsigned h = (P + 16 * p_div - 1) / (16 * p_div);
-            const unsigned h_len = p_div - (16 * h * p_div - P) / 16;
-            const unsigned w = (R + 64 * r_div - 1) / (64 * r_div);
-            const unsigned w_len = r_div - (64 * w * r_div - R) / 64;
+            const unsigned h = (P2 + 16 * p_div - 1) / (16 * p_div);
+            const unsigned h_len = p_div - (16 * h * p_div - P2) / 16;
+            const unsigned w = (R2 + 16 * r_div - 1) / (16 * r_div);
+            const unsigned w_len = r_div - (16 * w * r_div - R2) / 16;
             unsigned h_acc = 0;
             for (i = 0; i < p_div; i ++) {
                 unsigned hi = i < h_len ? h : h-1;
@@ -149,8 +228,8 @@ void cblas_sgemm(
                     unif_set_uint(p + th * unif_len_1th +  2, Q);
                     unif_set_uint(p + th * unif_len_1th +  3, wj);
                     unif_set_uint(p + th * unif_len_1th +  4, (unsigned) ((unsigned*)a_gpu + 16 * h_acc * k             ));
-                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  64 * w_acc));
-                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + 16 * h_acc * n + 64 * w_acc));
+                    unif_set_uint(p + th * unif_len_1th +  5, (unsigned) ((unsigned*)b_gpu +                  R1 + 16 * w_acc));
+                    unif_set_uint(p + th * unif_len_1th +  6, (unsigned) ((unsigned*)c_gpu + 16 * h_acc * n + R1 + 16 * w_acc));
                     th ++;
                     w_acc += wj;
                 }
@@ -171,5 +250,6 @@ void cblas_sgemm(
                                 (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                                 (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
         );
+
     }
 }
