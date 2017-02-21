@@ -16,17 +16,18 @@ def mask(*idxs):
 
 @qpu
 def sgemm_gpu_code(asm):
+    NCOLS_IDXS = [0]*4
     B_CUR_IDX = 0
     K_IDX = 1
     I_IDX = 2;           NROWS_IDX = 2
-    J_IDX = 3;           NCOLS_IDX = 3
+    J_IDX = 3
     P_IDX = 4;           DMA_SETUP_IDX = 4
     Q_IDX = 5;           LOAD_BLOCKS_IDX = 5
     R_IDX = 6;           STORE_BLOCKS_IDX = 6
-    A_CUR_IDX = 7
-    C_CUR_IDX = 8
-    A_BASE_IDX = 9
-    B_BASE_IDX = 10
+    A_CUR_IDX = 7;       NCOLS_IDXS[0] = 7
+    C_CUR_IDX = 8;       NCOLS_IDXS[1] = 8
+    A_BASE_IDX = 9;      NCOLS_IDXS[2] = 9
+    B_BASE_IDX = 10;     NCOLS_IDXS[3] = 10
     C_BASE_IDX = 11
     A_STRIDE_IDX = 12
     B_STRIDE_IDX = 13
@@ -206,23 +207,28 @@ def sgemm_gpu_code(asm):
 
     #==== end of k-loop ====
 
-    def setup_dma_load_block(block):
-        # nrows = min(P-((P+15)/16-i)*16, 16)
-        rotate(broadcast, r2, -P_IDX)
-        iadd(r1, r5, 15)
-        shr(r1, r1, 4)
-        rotate(broadcast, r2, -I_IDX)
-        isub(r1, r1, r5)
-        shl(r1, r1, 4)
-        rotate(broadcast, r2, -P_IDX)
-        isub(r1, r5, r1)
-        rotate(broadcast, r1, 0)
-        ldi(r1, 16)
-        imin(r1, r1, r5)
-        band(r1, r1, 0xF)
-        ldi(null, mask(NROWS_IDX), set_flags=True)
-        mov(r3, r1, cond='zs')
+    for i in range(1, 31):
+        fadd(ra[i],  ra[i],  r0).fmul(r0, r4, uniform)
+        fadd(rb[i],  rb[i],  r0).fmul(r0, r4, uniform)
+    fadd(ra31, ra31, r0).fmul(r0, r4, uniform)
+    fadd(rb31, rb31, r0, sig='load tmu0') # Emit load tmu0 signal for the last write to tmu0_s
 
+    # nrows = min(P-((P+15)/16-i)*16, 16)
+    rotate(broadcast, r2, -P_IDX)
+    iadd(r1, r5, 15)
+    shr(r1, r1, 4)
+    rotate(broadcast, r2, -I_IDX)
+    isub(r1, r1, r5)
+    shl(r1, r1, 4)
+    rotate(broadcast, r2, -P_IDX)
+    isub(r1, r5, r1)
+    rotate(broadcast, r1, 0)
+    ldi(r1, 16)
+    imin(r1, r1, r5)
+    ldi(null, mask(NROWS_IDX), set_flags=True)
+    mov(r3, r1, cond='zs')
+
+    for block in range(4):
         # ncols = min(R-(((R+63)/64-j)*4+block)*16, 16)
         ldi(r1, 63)
         rotate(broadcast, r2, -R_IDX)
@@ -238,14 +244,17 @@ def sgemm_gpu_code(asm):
         rotate(broadcast, r1, 0)
         ldi(r1, 16)
         imin(r1, r1, r5)
-        band(r1, r1, 0xF)
-        ldi(null, mask(NCOLS_IDX), set_flags=True)
+        # band(r1, r1, 0xF)
+        ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
         mov(r3, r1, cond='zs')
 
-        rotate(broadcast, r3, -NCOLS_IDX)
-        shl(r1, r5, 4)  # ncols<<4
+    def setup_dma_load_block(block):
+        rotate(broadcast, r3, -NCOLS_IDXS[block])
+        band(r1, r5, 0xF)
+        shl(r1, r1, 4)  # ncols<<4
         rotate(broadcast, r3, -NROWS_IDX)
-        bor(r1, r1, r5) # ncols<<4|nrows
+        band(r0, r5, 0xF)
+        bor(r1, r1, r0) # ncols<<4|nrows
         shl(r1, r1, 8)  # (ncols<<4|nrows)<<8
         shl(r1, r1, 8)  # (ncols<<4|nrows)<<8<<8 = ncols<<20|nrows<<16
         ldi(null, mask(DMA_SETUP_IDX), set_flags=True)
@@ -262,55 +271,19 @@ def sgemm_gpu_code(asm):
         bor(vpmvcd_rd_setup, r1, r5)
 
     def setup_dma_store_block(block):
-        # nrows = min(P-((P+15)/16-i)*16, 16)
-        rotate(broadcast, r2, -P_IDX)
-        iadd(r1, r5, 15)
-        shr(r1, r1, 4)
-        rotate(broadcast, r2, -I_IDX)
-        isub(r1, r1, r5)
-        shl(r1, r1, 4)
-        rotate(broadcast, r2, -P_IDX)
-        isub(r1, r5, r1)
-        rotate(broadcast, r1, 0)
-        ldi(r1, 16)
-        imin(r1, r1, r5)
-        rotate(broadcast, r1, 0)
-        ldi(r1, 0x1F)
-        band(r1, r1, r5)
-        ldi(null, mask(NROWS_IDX), set_flags=True)
-        mov(r3, r1, cond='zs')
-
-        # ncols = min(R-(((R+63)/64-j)*4+block)*16, 16)
-        ldi(r1, 63)
-        rotate(broadcast, r2, -R_IDX)
-        iadd(r1, r1, r5)               # R+63
-        shr(r1, r1, 6)                 # (R+63)/64
-        rotate(broadcast, r2, -J_IDX)
-        isub(r1, r1, r5)               # (R+63)/64-j
-        shl(r1, r1, 2)                 # ((R+63)/64-j)*4
-        iadd(r1, r1, block)            # ((R+63)/64-j)*4+block
-        shl(r1, r1, 4)                 # (((R+63)/64-j)*4+block)*16
-        rotate(broadcast, r2, -R_IDX)
-        isub(r1, r5, r1)               # R-(((R+63)/64-j)*4+block)*16
-        rotate(broadcast, r1, 0)
-        ldi(r1, 16)
-        imin(r1, r1, r5)
-        rotate(broadcast, r1, 0)
-        ldi(r1, 0x1F)
-        band(r1, r1, r5)
-        ldi(null, mask(NCOLS_IDX), set_flags=True)
-        mov(r3, r1, cond='zs')
-
         # stride = C_stride - 4 * ncols
-        imul24(r1, r1, 4)
+        rotate(broadcast, r3, -NCOLS_IDXS[block])
+        imul24(r1, r5, 4)
         rotate(broadcast, r2, -C_STRIDE_IDX)
         isub(r1, r5, r1)
         setup_dma_store_stride(r1)
 
         rotate(broadcast, r3, -NROWS_IDX)
         shl(r1, r5, 7)  # nrows<<7
-        rotate(broadcast, r3, -NCOLS_IDX)
-        bor(r1, r1, r5) # nrows<<7|ncols
+        rotate(broadcast, r3, -NCOLS_IDXS[block])
+        ldi(r0, 0x1F)
+        band(r0, r0, r5)
+        bor(r1, r1, r0) # nrows<<7|ncols
         shl(r1, r1, 8)  # (nrows<<7|ncols)<<8
         shl(r1, r1, 8)  # (nrows<<7|ncols)<<8<<8 = nrows<<23|ncols<<16
         ldi(null, mask(DMA_SETUP_IDX), set_flags=True)
@@ -355,12 +328,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
     isub(r3, r5, 1, cond='zs')
-
-    for i in range(1, 31):
-        fadd(ra[i],  ra[i],  r0).fmul(r0, r4, uniform)
-        fadd(rb[i],  rb[i],  r0).fmul(r0, r4, uniform)
-    fadd(ra31, ra31, r0).fmul(r0, r4, uniform)
-    fadd(rb31, rb31, r0, sig='load tmu0') # Emit load tmu0 signal for the last write to tmu0_s
 
     wait_dma_load() # block 0
 
