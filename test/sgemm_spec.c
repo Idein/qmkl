@@ -80,6 +80,7 @@ static void test_sgemm_RNN_ones_48x2_2x384();
 static void test_sgemm_RNN_ones_48x2_2x448();
 static void test_sgemm_RNN_ones_816x2_2x816(); // 816 = 64 * 12 + 16 * 3
 static void test_sgemm_RNN_ones_96x363_363x3072();
+static void test_sgemm_RNN_ones_MxK_KxN();     // random M,N,K
 
 static void test_sgemm_RNN_randoms_16x2_2x16();
 static void test_sgemm_RNN_randoms_16x2_2x32();
@@ -113,6 +114,7 @@ static void test_sgemm_RNN_randoms_48x2_2x384();
 static void test_sgemm_RNN_randoms_48x2_2x448();
 static void test_sgemm_RNN_randoms_816x2_2x816();
 static void test_sgemm_RNN_randoms_96x363_363x3072();
+static void test_sgemm_RNN_randoms_MxK_KxN();
 
 int setup_suite_sgemm_RNN() {
     srand(0xDEADBEEF);
@@ -159,6 +161,7 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "ones 48x2 * 2x448", test_sgemm_RNN_ones_48x2_2x448);
     CU_add_test(suite, "ones 816x2 * 2x816", test_sgemm_RNN_ones_816x2_2x816);
     CU_add_test(suite, "ones 96x363 * 363x3072", test_sgemm_RNN_ones_96x363_363x3072);
+    CU_add_test(suite, "ones MxK * KxN", test_sgemm_RNN_ones_MxK_KxN);
 
     CU_add_test(suite, "randoms 16x2 * 2x16" , test_sgemm_RNN_randoms_16x2_2x16 );
     CU_add_test(suite, "randoms 16x2 * 2x32" , test_sgemm_RNN_randoms_16x2_2x32 );
@@ -192,6 +195,7 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "randoms 48x2 * 2x448", test_sgemm_RNN_randoms_48x2_2x448);
     CU_add_test(suite, "randoms 816x2 * 2x816", test_sgemm_RNN_randoms_816x2_2x816);
     CU_add_test(suite, "randoms 96x363 * 363x3072", test_sgemm_RNN_randoms_96x363_363x3072);
+    CU_add_test(suite, "randoms MxK * KxN", test_sgemm_RNN_randoms_MxK_KxN);
 }
 
 static float* mkl_malloc_ones(const int m, const int n) {
@@ -261,6 +265,24 @@ void test_sgemm_RNN_ones_48x2_2x384() { test_sgemm_RNN_ones(48, 384, 2); }
 void test_sgemm_RNN_ones_48x2_2x448() { test_sgemm_RNN_ones(48, 448, 2); }
 void test_sgemm_RNN_ones_816x2_2x816() { test_sgemm_RNN_ones(816, 816, 2); }
 void test_sgemm_RNN_ones_96x363_363x3072() { test_sgemm_RNN_ones(96, 3072, 363); }
+void test_sgemm_RNN_ones_MxK_KxN() {
+    int i = 0;
+    puts("");
+    for (i = 0; i < 64; ++i) {
+        int M = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int N = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int K = 2 + ((float)rand() / RAND_MAX) * (256 - 2); // [2, 256]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RNN_ones(M, N, K);
+    }
+    {
+        int M = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int N = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int K = 2 + ((float)rand() / RAND_MAX) * (512 - 2);              // [2      ,  512]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RNN_ones(M, N, K);
+    }
+}
 
 static float rand_in_range(float from, float to) {
     return ((float)rand() / RAND_MAX) * (to - from) + from;
@@ -348,3 +370,21 @@ void test_sgemm_RNN_randoms_48x2_2x384() { test_sgemm_RNN_randoms(48, 384, 2); }
 void test_sgemm_RNN_randoms_48x2_2x448() { test_sgemm_RNN_randoms(48, 448, 2); }
 void test_sgemm_RNN_randoms_816x2_2x816() { test_sgemm_RNN_randoms(816, 816, 2); }
 void test_sgemm_RNN_randoms_96x363_363x3072() { test_sgemm_RNN_randoms(96, 3072, 363); }
+void test_sgemm_RNN_randoms_MxK_KxN() {
+    int i = 0;
+    puts("");
+    for (i = 0; i < 64; ++i) {
+        int M = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int N = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int K = 2 + ((float)rand() / RAND_MAX) * (256 - 2); // [2, 256]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RNN_randoms(M, N, K);
+    }
+    {
+        int M = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int N = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int K = 2 + ((float)rand() / RAND_MAX) * (512 - 2);              // [2      ,  512]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RNN_randoms(M, N, K);
+    }
+}
