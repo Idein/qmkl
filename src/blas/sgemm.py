@@ -17,17 +17,17 @@ def mask(*idxs):
 @qpu
 def sgemm_gpu_code(asm):
     NCOLS_IDXS = [0]*4
-    B_CUR_IDX = 0
-    K_IDX = 1
+    B_CUR_IDX = 0;       LOAD_BLOCKS_IDX = 0
+    K_IDX = 1;           STORE_BLOCKS_IDX = 1
     I_IDX = 2;           NROWS_IDX = 2
-    J_IDX = 3
-    P_IDX = 4;           DMA_SETUP_IDX = 4
-    Q_IDX = 5;           LOAD_BLOCKS_IDX = 5
-    R_IDX = 6;           STORE_BLOCKS_IDX = 6
-    A_CUR_IDX = 7;       NCOLS_IDXS[0] = 7
-    C_CUR_IDX = 8;       NCOLS_IDXS[1] = 8
-    A_BASE_IDX = 9;      NCOLS_IDXS[2] = 9
-    B_BASE_IDX = 10;     NCOLS_IDXS[3] = 10
+    J_IDX = 3;           NCOLS_IDXS[0] = 3
+    P_IDX = 4;           NCOLS_IDXS[1] = 4
+    Q_IDX = 5;           NCOLS_IDXS[2] = 5
+    R_IDX = 6;           NCOLS_IDXS[3] = 6
+    A_CUR_IDX = 7
+    C_CUR_IDX = 8
+    A_BASE_IDX = 9
+    B_BASE_IDX = 10
     C_BASE_IDX = 11
     A_STRIDE_IDX = 12
     B_STRIDE_IDX = 13
@@ -249,17 +249,15 @@ def sgemm_gpu_code(asm):
         mov(r3, r1, cond='zs')
 
     def setup_dma_load_block(block):
-        rotate(broadcast, r3, -NCOLS_IDXS[block])
-        band(r1, r5, 0xF)
-        shl(r1, r1, 4)  # ncols<<4
+        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
+        band(r1, r5, 0xF)                         # will be delay slot
+        shl(r1, r1, 4)     # ncols<<4             # will be delay slot
         rotate(broadcast, r3, -NROWS_IDX)
         band(r0, r5, 0xF)
-        bor(r1, r1, r0) # ncols<<4|nrows
-        shl(r1, r1, 8)  # (ncols<<4|nrows)<<8
-        shl(r1, r1, 8)  # (ncols<<4|nrows)<<8<<8 = ncols<<20|nrows<<16
-        ldi(null, mask(DMA_SETUP_IDX), set_flags=True)
-        mov(r3, r1, cond='zs')
-        ldi(r1,
+        bor(r1, r1, r0)    # ncols<<4|nrows
+        shl(r1, r1, 8)     # (ncols<<4|nrows)<<8
+        shl(r1, r1, 8)     # (ncols<<4|nrows)<<8<<8 = ncols<<20|nrows<<16
+        ldi(r0,
             0x80000000|    # setup_dma_load
             0<<28|         # 32bit
             0<<24|         # use the extended pitch setup register
@@ -267,35 +265,29 @@ def sgemm_gpu_code(asm):
             0<<11|         # horizontal
             (block*16)<<4| # Y=16*block
             0)             # X=0
-        rotate(broadcast, r3, -DMA_SETUP_IDX)
-        bor(vpmvcd_rd_setup, r1, r5)
+        bor(vpmvcd_rd_setup, r1, r0)
 
     def setup_dma_store_block(block):
         # stride = C_stride - 4 * ncols
-        rotate(broadcast, r3, -NCOLS_IDXS[block])
-        imul24(r1, r5, 4)
-        rotate(broadcast, r2, -C_STRIDE_IDX)
+        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
+        imul24(r1, r5, 4)                         # will be delay slot
+        rotate(broadcast, r2, -C_STRIDE_IDX)      # will be delay slot
         isub(r1, r5, r1)
         setup_dma_store_stride(r1)
 
         rotate(broadcast, r3, -NROWS_IDX)
-        shl(r1, r5, 7)  # nrows<<7
+        shl(r1, r5, 7)     # nrows<<7
         rotate(broadcast, r3, -NCOLS_IDXS[block])
-        ldi(r0, 0x1F)
-        band(r0, r0, r5)
-        bor(r1, r1, r0) # nrows<<7|ncols
-        shl(r1, r1, 8)  # (nrows<<7|ncols)<<8
-        shl(r1, r1, 8)  # (nrows<<7|ncols)<<8<<8 = nrows<<23|ncols<<16
-        ldi(null, mask(DMA_SETUP_IDX), set_flags=True)
-        mov(r3, r1, cond='zs')
-        ldi(r1,
+        bor(r1, r1, r5)    # nrows<<7|ncols
+        shl(r1, r1, 8)     # (nrows<<7|ncols)<<8
+        shl(r1, r1, 8)     # (nrows<<7|ncols)<<8<<8 = nrows<<23|ncols<<16
+        ldi(r0,
             0x80000000|    # setup_dma_store
             1<<14|         # horizontal
             (16*block)<<7| # Y=16*block
             0<<3|          # X=0
             0)             # 32bit
-        rotate(broadcast, r3, -DMA_SETUP_IDX)
-        bor(vpmvcd_wr_setup, r1, r5)
+        bor(vpmvcd_wr_setup, r1, r0)
 
     # blocks = min((R-((R+63)/64-j)*64+15)/16, 4)
     ldi(r1, 63)                   # 63
@@ -310,9 +302,7 @@ def sgemm_gpu_code(asm):
     iadd(r1, r1, 15)              # R-((R+63)/64-j)*64+15
     shr(r1, r1, 4)                # (R-((R+63)/64-j)*64+15)/16
     imin(r1, r1, 4)
-    ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
-    mov(r3, r1, cond='zs')
-    ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
+    ldi(null, mask(LOAD_BLOCKS_IDX, STORE_BLOCKS_IDX), set_flags=True)
     mov(r3, r1, cond='zs')
 
     mutex_acquire()
@@ -335,7 +325,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_1)
-    nop(); nop(); nop()
     setup_dma_load_block(1)
     ldi(r0, 4*16)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -380,7 +369,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_2)
-    nop(); nop(); nop()
     setup_dma_load_block(2)
     ldi(r0, 4*16*2)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -419,7 +407,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_1)
-    nop(); nop(); nop()
     setup_dma_store_block(1)
     ldi(r0, 4*16)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -432,7 +419,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_3)
-    nop(); nop(); nop()
     setup_dma_load_block(3)
     ldi(r0, 4*16*3)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -471,7 +457,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_2)
-    nop(); nop(); nop()
     setup_dma_store_block(2)
     ldi(r0, 4*16*2)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -508,7 +493,6 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_3)
-    nop(); nop(); nop()
     setup_dma_store_block(3)
     ldi(r0, 4*16*3)
     rotate(broadcast, r2, -C_CUR_IDX)
@@ -547,15 +531,15 @@ def sgemm_gpu_code(asm):
     mov(null, uniform, set_flags=True)  # thread index
 
     jzc(L.skip_fin)
-    nop(); nop(); nop()
-
+    nop()                 # delay slot
+    nop()                 # delay slot
     # Only thread 0 enters here.
-    iadd(r0, uniform, -1)
+    iadd(r0, uniform, -1) # delay slot
     L.sem_down
     jzc(L.sem_down)
-    sema_down(COMPLETED)    # Wait completion of all threads.
-    nop()
-    iadd(r0, r0, -1)
+    sema_down(COMPLETED)  # delay slot  # Wait completion of all threads.
+    nop()                 # delay slot
+    iadd(r0, r0, -1)      # delay slot
 
     interrupt()
 
