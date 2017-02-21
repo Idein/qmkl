@@ -1,6 +1,7 @@
 # GPU accelerated single precision matrix multiplication (single thread)
 import numpy as np
 import struct
+import sys
 import time
 import random
 # from PIL import Image
@@ -670,5 +671,7 @@ def main():
                 float(np.max(np.abs((R - C) / R)))))
 
 if __name__ == '__main__':
+    if sys.argv[1] == 'qbin':
+        print_qbin(sgemm_gpu_code)
+        exit(0)
     main()
-    #print_qbin(sgemm_gpu_code)
