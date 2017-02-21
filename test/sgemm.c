@@ -270,7 +270,7 @@ int main()
     const unsigned P = 96;
     const unsigned Q = 363;
     const unsigned R = 3072;
-    float *A, *B, *C, *C_ref;
+    float *A, *A_ref, *B, *B_ref, *C, *C_ref;
 #ifdef _HAVE_NEON_
     float *C_neon;
 #endif /* _HAVE_NEON_ */
@@ -279,9 +279,11 @@ int main()
     struct timeval start, end;
 
     A     = mkl_malloc(P * Q * (32 / 8), 4096);
+    A_ref = malloc(P * Q * (32 / 8));
     B     = mkl_malloc(Q * R * (32 / 8), 4096);
+    B_ref = malloc(Q * R * (32 / 8));
     C     = mkl_malloc(P * R * (32 / 8), 4096);
-    C_ref = mkl_malloc(P * R * (32 / 8), 4096);
+    C_ref = malloc(P * R * (32 / 8));
 #ifdef DO_1FILL
     mf_init_constant(&ALPHA, 1, 1, 1);
     mf_init_constant(&BETA,  1, 1, 1);
@@ -296,9 +298,11 @@ int main()
     mf_init_random(B, Q, R);
     mf_init_random(C, P, R);
 #endif /* DO_1FILL */
+    memcpy(A_ref, A, P * Q * (32 / 8));
+    memcpy(B_ref, B, Q * R * (32 / 8));
     memcpy(C_ref, C, P * R * (32 / 8));
 #ifdef _HAVE_NEON_
-    C_neon = mkl_malloc(P * R * (32 / 8), 4096);
+    C_neon = malloc(P * R * (32 / 8));
     memcpy(C_neon, C, P * R * (32 / 8));
 #endif /* _HAVE_NEON_ */
 
@@ -317,7 +321,7 @@ int main()
 
     printf("CPU (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
-    mf_sgemm(A, B, C_ref, P, Q, R, ALPHA, BETA);
+    mf_sgemm(A_ref, B_ref, C_ref, P, Q, R, ALPHA, BETA);
     gettimeofday(&end, NULL);
     printf("%g [s], %g [flop/s]\n", (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6, (2 * P * Q * R + 3 * P * R) / ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6));
 
@@ -329,7 +333,7 @@ int main()
 #ifdef _HAVE_NEON_
     printf("CPU with NEON (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
-    mf_sgemm_neon(A, B, C_neon, P, Q, R, ALPHA, BETA);
+    mf_sgemm_neon(A_ref, B_ref, C_neon, P, Q, R, ALPHA, BETA);
     gettimeofday(&end, NULL);
     printf("%g [s], %g [flop/s]\n", (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6, (2 * P * Q * R + 3 * P * R) / ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6));
 
@@ -338,9 +342,11 @@ int main()
     printf("Minimum relative error: %g\n", mf_minimum_relative_error(C_ref, C_neon, P, R));
     printf("Maximum relative error: %g\n", mf_maximum_relative_error(C_ref, C_neon, P, R));
 
-    mkl_free(C_neon);
+    free(C_neon);
 #endif /* _HAVE_NEON_ */
-    mkl_free(C_ref);
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
     mkl_free(C);
     mkl_free(B);
     mkl_free(A);
