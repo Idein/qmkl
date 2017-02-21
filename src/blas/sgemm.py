@@ -622,8 +622,11 @@ def main():
         C[:] = np.random.randn(p, r) # np.ones(shape=(p, r)) # np.arange(p*r).reshape(p, r) + 1 #
 
         # Reference
+        RA = A.copy()
+        RB = B.copy()
+        RC = C.copy()
         start = time.time()
-        R = alpha*A.dot(B) + beta*C
+        R = alpha*RA.dot(RB) + beta*RC
         elapsed_ref = time.time() - start
 
         # Allocate uniforms.
