@@ -17,6 +17,9 @@ def mask(*idxs):
 @qpu
 def sgemm_gpu_code(asm):
     NCOLS_IDXS = [0]*4
+    LOAD_SETUP_IDXS = [0]*4
+    STORE_SETUP_IDXS = [0]*4
+
     B_CUR_IDX = 0;       LOAD_BLOCKS_IDX = 0
     K_IDX = 1;           STORE_BLOCKS_IDX = 1
     I_IDX = 2;           NROWS_IDX = 2
@@ -24,14 +27,14 @@ def sgemm_gpu_code(asm):
     P_IDX = 4;           NCOLS_IDXS[1] = 4
     Q_IDX = 5;           NCOLS_IDXS[2] = 5
     R_IDX = 6;           NCOLS_IDXS[3] = 6
-    A_CUR_IDX = 7
-    C_CUR_IDX = 8
-    A_BASE_IDX = 9
-    B_BASE_IDX = 10
-    C_BASE_IDX = 11
-    A_STRIDE_IDX = 12
-    B_STRIDE_IDX = 13
-    C_STRIDE_IDX = 14
+    A_CUR_IDX = 7;       LOAD_SETUP_IDXS[0] = 7
+    C_CUR_IDX = 8;       LOAD_SETUP_IDXS[1] = 8
+    A_BASE_IDX = 9;      LOAD_SETUP_IDXS[2] = 9
+    B_BASE_IDX = 10;     LOAD_SETUP_IDXS[3] = 10
+    C_BASE_IDX = 11;     STORE_SETUP_IDXS[0] = 11
+    A_STRIDE_IDX = 12;   STORE_SETUP_IDXS[1] = 12
+    B_STRIDE_IDX = 13;   STORE_SETUP_IDXS[2] = 13
+    C_STRIDE_IDX = 14;   STORE_SETUP_IDXS[3] = 14
     COEF_ADDR_IDX = 15
 
     # Semaphore
@@ -248,10 +251,9 @@ def sgemm_gpu_code(asm):
         ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
         mov(r3, r1, cond='zs')
 
-    def setup_dma_load_block(block):
-        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
-        band(r1, r5, 0xF)                         # will be delay slot
-        shl(r1, r1, 4)     # ncols<<4             # will be delay slot
+        # load setup params
+        band(r1, r1, 0xF)
+        shl(r1, r1, 4)     # ncols<<4
         rotate(broadcast, r3, -NROWS_IDX)
         band(r0, r5, 0xF)
         bor(r1, r1, r0)    # ncols<<4|nrows
@@ -265,16 +267,10 @@ def sgemm_gpu_code(asm):
             0<<11|         # horizontal
             (block*16)<<4| # Y=16*block
             0)             # X=0
-        bor(vpmvcd_rd_setup, r1, r0)
+        ldi(null, mask(LOAD_SETUP_IDXS[block]), set_flags=True)
+        bor(r3, r0, r1, cond='zs')
 
-    def setup_dma_store_block(block):
-        # stride = C_stride - 4 * ncols
-        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
-        imul24(r1, r5, 4)                         # will be delay slot
-        rotate(broadcast, r2, -C_STRIDE_IDX)      # will be delay slot
-        isub(r1, r5, r1)
-        setup_dma_store_stride(r1)
-
+        # store setup params
         rotate(broadcast, r3, -NROWS_IDX)
         shl(r1, r5, 7)     # nrows<<7
         rotate(broadcast, r3, -NCOLS_IDXS[block])
@@ -287,7 +283,25 @@ def sgemm_gpu_code(asm):
             (16*block)<<7| # Y=16*block
             0<<3|          # X=0
             0)             # 32bit
-        bor(vpmvcd_wr_setup, r1, r0)
+        ldi(null, mask(STORE_SETUP_IDXS[block]), set_flags=True)
+        bor(r3, r0, r1, cond='zs')
+
+    def setup_dma_load_block(block):
+        rotate(broadcast, r3, -LOAD_SETUP_IDXS[block]) # will be delay slot
+        nop()                                          # will be delay slot
+        nop()                                          # will be delay slot
+        mov(vpmvcd_rd_setup, r5)
+
+    def setup_dma_store_block(block):
+        # stride = C_stride - 4 * ncols
+        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
+        imul24(r1, r5, 4)                         # will be delay slot
+        rotate(broadcast, r2, -C_STRIDE_IDX)      # will be delay slot
+        isub(r1, r5, r1)
+        setup_dma_store_stride(r1)
+
+        rotate(broadcast, r3, -STORE_SETUP_IDXS[block])
+        mov(vpmvcd_wr_setup, r5)
 
     # blocks = min((R-((R+63)/64-j)*64+15)/16, 4)
     ldi(r1, 63)                   # 63
