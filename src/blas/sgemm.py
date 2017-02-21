@@ -295,7 +295,7 @@ def sgemm_gpu_code(asm):
         # stride = C_stride - 4 * ncols
         rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
         imul24(r1, r5, 4)                         # will be delay slot
-        rotate(broadcast, r2, -C_STRIDE_IDX)      # will be delay slot
+        rotate(broadcast, r2, -C_STRIDE_IDX)
         isub(r1, r5, r1)
         setup_dma_store_stride(r1)
 
@@ -336,8 +336,8 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_1)
-    wait_dma_load()  # block 0              # delay slot
-    setup_dma_load_block(1)
+    wait_dma_load()  # Wait for load of block 0  # delay slot
+    setup_dma_load_block(1)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_ld_addr, r5, r0)
@@ -379,8 +379,8 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_2)
-    wait_dma_load()  # block 1              # delay slot
-    setup_dma_load_block(2)
+    wait_dma_load()  # Wait for load of block 1  # delay slot
+    setup_dma_load_block(2)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16*2)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_ld_addr, r5, r0)
@@ -412,11 +412,11 @@ def sgemm_gpu_code(asm):
     mov(rb15, 0.0)
 
     # Issue store of block 1
-    wait_dma_store() # Wait for store of block 0
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_1)
-    setup_dma_store_block(1)
+    wait_dma_store() # Wait for store of block 0  # delay slot
+    setup_dma_store_block(1)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_st_addr, r5, r0)
@@ -428,8 +428,8 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_load_block_3)
-    wait_dma_load()  # block 2              # delay slot
-    setup_dma_load_block(3)
+    wait_dma_load()  # Wait for load of block 2  # delay slot
+    setup_dma_load_block(3)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16*3)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_ld_addr, r5, r0)
@@ -461,11 +461,11 @@ def sgemm_gpu_code(asm):
     mov(rb23, 0.0)
 
     # Issue store of block 2.
-    wait_dma_store() # Wait for store of block 1
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_2)
-    setup_dma_store_block(2)
+    wait_dma_store() # Wait for store of block 1  # delay slot
+    setup_dma_store_block(2)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16*2)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_st_addr, r5, r0)
@@ -499,11 +499,11 @@ def sgemm_gpu_code(asm):
     mov(rb31, 0.0)
 
     # Issue store of block 3
-    wait_dma_store() # Wait for store of block 2
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
     mov(r0, r5, set_flags=True)
     jzs(L.skip_store_block_3)
-    setup_dma_store_block(3)
+    wait_dma_store() # Wait for store of block 2  # delay slot
+    setup_dma_store_block(3)                      # delay slot (head 2 instruction)
     ldi(r0, 4*16*3)
     rotate(broadcast, r2, -C_CUR_IDX)
     iadd(vpm_st_addr, r5, r0)
