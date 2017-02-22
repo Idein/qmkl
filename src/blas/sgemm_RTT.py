@@ -572,9 +572,9 @@ def sgemm_gpu_code(asm):
 
 def main():
     with Driver() as drv:
-        p = 96 # random.randint(64 * 12, 1024)
-        q = 363 # random.randint(2, 512)
-        r = 3072 # random.randint(64 * 12, 1024)
+        p = random.randint(64 * 12, 1024)
+        q = random.randint(2, 512)
+        r = random.randint(64 * 12, 1024)
 
         assert(q >= 2)
 
