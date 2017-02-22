@@ -35,11 +35,13 @@ static void visualize(const char* file, const int h, const int w, float* p) {
 #endif
 
 static void suite_sgemm_RNN();
+static void suite_sgemm_RTT();
 
 int main() {
     CU_initialize_registry();
 
     suite_sgemm_RNN();
+    suite_sgemm_RTT();
 
     isatty(fileno(stdout)) ? CU_console_run_tests() : CU_basic_run_tests();
     const unsigned int result = CU_get_number_of_failures();
@@ -386,5 +388,125 @@ void test_sgemm_RNN_randoms_MxK_KxN() {
         int K = 2 + ((float)rand() / RAND_MAX) * (512 - 2);              // [2      ,  512]
         printf("M = %d, N = %d K = %d\n", M, N, K);
         test_sgemm_RNN_randoms(M, N, K);
+    }
+}
+
+static void test_sgemm_RTT_ones_MxK_KxN();     // random M,N,K
+static void test_sgemm_RTT_randoms_MxK_KxN();
+
+int setup_suite_sgemm_RTT() {
+    srand(0xDEADBEEF);
+    return 0;
+}
+
+int teardown_suite_sgemm_RTT() {
+    return 0;
+}
+
+void suite_sgemm_RTT() {
+    CU_pSuite suite = CU_add_suite("sgemm RTT", setup_suite_sgemm_RTT, teardown_suite_sgemm_RTT);
+
+    CU_add_test(suite, "ones MxK * KxN", test_sgemm_RTT_ones_MxK_KxN);
+    CU_add_test(suite, "randoms MxK * KxN", test_sgemm_RTT_randoms_MxK_KxN);
+}
+
+static void test_sgemm_RTT_ones(const int M, const int N, const int K) {
+    float* A = mkl_malloc_ones(K, M);
+    float* B = mkl_malloc_ones(N, K);
+    float* C = mkl_malloc_ones(M, N);
+    cblas_sgemm(CblasRowMajor, CblasTrans, CblasTrans, M, N, K, 1, A, M, B, K, 1, C, N);
+    {
+        int i, j;
+        for (i = 0; i < M; ++i)
+            for (j = 0; j < N; ++j)
+                CU_ASSERT_EQUAL(K+1, (int)C[i*N+j]);
+    }
+#ifdef HAVE_PNG
+    {
+        int i, j;
+        for (i = 0; i < M; ++i)
+            for (j = 0; j < N; ++j)
+                C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+    }
+    char file[256] = {0};
+    sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+    visualize(file, M, N, C);
+#endif
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
+void test_sgemm_RTT_ones_MxK_KxN() {
+    int i = 0;
+    puts("");
+    for (i = 0; i < 64; ++i) {
+        int M = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int N = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int K = 2 + ((float)rand() / RAND_MAX) * (256 - 2); // [2, 256]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RTT_ones(M, N, K);
+    }
+    {
+        int M = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int N = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int K = 2 + ((float)rand() / RAND_MAX) * (512 - 2);              // [2      ,  512]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RTT_ones(M, N, K);
+    }
+}
+
+static void test_sgemm_RTT_randoms(const int M, const int N, const int K) {
+    float* A = mkl_malloc_randoms(K, M);
+    float* B = mkl_malloc_randoms(N, K);
+    float* C = mkl_malloc_randoms(M, N);
+    float* R = mkl_malloc_with_copy(M, N, C);
+    const float alpha = rand_in_range(-1.0, 1.0);
+    const float beta = rand_in_range(-1.0, 1.0);
+    cblas_sgemm(CblasRowMajor, CblasTrans, CblasTrans, M, N, K, alpha, A, M, B, K, beta, C, N);
+    {
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A[k*M+i] * B[j*K+k];
+                R[i*N+j] = alpha * acc + beta * R[i*N+j];
+            }
+        }
+    }
+    {
+        float maximum_abs_error = 0;
+        int i, j;
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                if (maximum_abs_error < abs(R[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = abs(R[i*N+j] - C[i*N+j]);
+            }
+        }
+        CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
+    }
+    mkl_free(R);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
+void test_sgemm_RTT_randoms_MxK_KxN() {
+    int i = 0;
+    puts("");
+    for (i = 0; i < 64; ++i) {
+        int M = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int N = 1 + ((float)rand() / RAND_MAX) * (256 - 1); // [1, 256]
+        int K = 2 + ((float)rand() / RAND_MAX) * (256 - 2); // [2, 256]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RTT_randoms(M, N, K);
+    }
+    {
+        int M = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int N = 64 * 12 + ((float)rand() / RAND_MAX) * (1024 - 64 * 12); // [64 * 12, 1024]
+        int K = 2 + ((float)rand() / RAND_MAX) * (512 - 2);              // [2      ,  512]
+        printf("M = %d, N = %d K = %d\n", M, N, K);
+        test_sgemm_RTT_randoms(M, N, K);
     }
 }
