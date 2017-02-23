@@ -78,11 +78,11 @@ def sgemm_gpu_code(asm):
 
     #==== Variables ====
 
-    # A_base = address of A[0,0] + (p+15)/16*16*A_stride
+    # A_base = address of A[0,0] + (p+15)/16*16*4
     # B_base = address of B[0,0]                         + (r+63)/64*64*4
     # C_base = address of C[0,0] + (p+15)/16*16*C_stride + (r+63)/64*64*4
 
-    # A_cur = A_base - 16*i*A_stride
+    # A_cur = A_base - 16*i*4
     # B_cur = B_base                 - 4*64*j
     # C_cur = C_base - 16*i*C_stride - 4*64*j
 
@@ -95,8 +95,7 @@ def sgemm_gpu_code(asm):
     iadd(r1, r1, r5)
     shr(r1, r1, 6)
     shl(r1, r1, 8)                  # r1=(r+63)/64*64*4
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    imul24(r3, r5, r0)              # r3=(p+15)/16*16*A_stride
+    shl(r3, r0, 2)                  # r3=(p+15)/16*16*4
     ldi(null, mask(A_BASE_IDX), set_flags=True)
     iadd(r2, r2, r3, cond='zs')
     ldi(null, mask(B_BASE_IDX), set_flags=True)
@@ -136,9 +135,7 @@ def sgemm_gpu_code(asm):
     shr(r2, r0, 6, cond='zs')
 
     rotate(broadcast, r2, -I_IDX)
-    shl(r0, r5, 4)                          # r0=16*i
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    imul24(r0, r0, r5)                      # r0=16*i*A_stride
+    shl(r0, r5, 6)                          # r0=16*i*4
     rotate(broadcast, r2, -A_BASE_IDX)
     ldi(null, mask(A_CUR_IDX), set_flags=True)
     isub(r2, r5, r0, cond='zs')
@@ -160,10 +157,9 @@ def sgemm_gpu_code(asm):
     ldi(null, mask(B_CUR_IDX), set_flags=True)
     isub(r2, r5, r1, cond='zs')
 
-    # r1[e] = A_cur + A_stride*e   (e=element number)
+    # r1[e] = A_cur + 4*e   (e=element number)
     nop()
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    imul24(r0, element_number, r5)
+    shl(r0, element_number, 2)
     rotate(broadcast, r2, -A_CUR_IDX)
     iadd(r1, r0, r5)
 
@@ -188,11 +184,12 @@ def sgemm_gpu_code(asm):
 
     mov(uniforms_address, r2)
     mov(tmu0_s, r1)
-    iadd(r1, r1, 4)
+    rotate(broadcast, r2, -A_STRIDE_IDX)
+    iadd(r1, r1, r5)
     nop(sig='load tmu0')
 
     iadd(r2, r2, r3).mov(tmu0_s, r1)
-    iadd(r1, r1, 4).fmul(r0, r4, uniform)
+    iadd(r1, r1, r5).fmul(r0, r4, uniform)
     fadd(ra0,  ra0,  r0).fmul(r0, r4, uniform)
     fadd(rb0,  rb0,  r0).fmul(r0, r4, uniform)
 
@@ -205,7 +202,7 @@ def sgemm_gpu_code(asm):
     fadd(rb31, rb31, r0, sig='load tmu0').mov(uniforms_address, r2)
     iadd(r2, r2, r3).mov(tmu0_s, r1)
     jzc(L.k_loop)
-    iadd(r1, r1, 4).fmul(r0, r4, uniform)      # delay slot
+    iadd(r1, r1, r5).fmul(r0, r4, uniform)     # delay slot
     fadd(ra0,  ra0,  r0).fmul(r0, r4, uniform) # delay slot
     fadd(rb0,  rb0,  r0).fmul(r0, r4, uniform) # delay slot
 
@@ -572,14 +569,14 @@ def main():
 
         # Allocate matrices.
         C = drv.alloc((p, r), 'float32')
-        A = drv.alloc((p, q), 'float32')
+        A = drv.alloc((q, p), 'float32')
         B = drv.alloc((q, r), 'float32')
 
         # Initialize matrices.
         np.random.seed(0)
         alpha = 1.0
         beta = 1.0
-        A[:] = np.random.randn(p, q) # np.ones(shape=(p, q)) #
+        A[:] = np.random.randn(q, p) # np.ones(shape=(q, p)) #
         B[:] = np.random.randn(q, r) # np.ones(shape=(q, r)) #
         C[:] = np.random.randn(p, r) # np.ones(shape=(p, r)) # np.arange(p*r).reshape(p, r) + 1 #
 
@@ -588,7 +585,7 @@ def main():
         RB = B.copy()
         RC = C.copy()
         start = time.time()
-        R = alpha*RA.dot(RB) + beta*RC
+        R = alpha*RA.T.dot(RB) + beta*RC
         elapsed_ref = time.time() - start
 
         # Allocate uniforms.
@@ -619,7 +616,7 @@ def main():
                 uniforms[th, 1] = hi
                 uniforms[th, 2] = q
                 uniforms[th, 3] = wj
-                uniforms[th, 4] = A.addresses()[h_acc, 0    ]
+                uniforms[th, 4] = A.addresses()[0,     h_acc]
                 uniforms[th, 5] = B.addresses()[0,     w_acc]
                 uniforms[th, 6] = C.addresses()[h_acc, w_acc]
                 th += 1
