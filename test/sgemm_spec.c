@@ -88,25 +88,27 @@ static void test_sgemm_RNN_ones(const int M, const int N, const int K) {
     float* B = mkl_malloc_ones(K, N);
     float* C = mkl_malloc_ones(M, N);
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, K, B, N, 1, C, N);
+    int diff = 0;
     {
         int i, j;
-        int diff = 0;
         for (i = 0; i < M; ++i)
             for (j = 0; j < N; ++j)
                 diff |= K+1 - (int)C[i*N+j];
         CU_ASSERT_EQUAL(diff, 0);
     }
 #ifdef HAVE_PNG
-    {
-        int i, j;
+    if (diff) {
+        {
+            int i, j;
 #pragma omp parallel for private(i, j)
-        for (i = 0; i < M; ++i)
-            for (j = 0; j < N; ++j)
-                C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+            for (i = 0; i < M; ++i)
+                for (j = 0; j < N; ++j)
+                    C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+        }
+        char file[256] = {0};
+        sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+        visualize(file, M, N, C);
     }
-    char file[256] = {0};
-    sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
-    visualize(file, M, N, C);
 #endif
     mkl_free(C);
     mkl_free(B);
@@ -240,25 +242,27 @@ static void test_sgemm_RTT_ones(const int M, const int N, const int K) {
     float* B = mkl_malloc_ones(N, K);
     float* C = mkl_malloc_ones(M, N);
     cblas_sgemm(CblasRowMajor, CblasTrans, CblasTrans, M, N, K, 1, A, M, B, K, 1, C, N);
+    int diff = 0;
     {
         int i, j;
-        int diff = 0;
         for (i = 0; i < M; ++i)
             for (j = 0; j < N; ++j)
                 diff |= K+1 - (int)C[i*N+j];
         CU_ASSERT_EQUAL(diff, 0);
     }
 #ifdef HAVE_PNG
-    {
-        int i, j;
+    if (diff) {
+        {
+            int i, j;
 #pragma omp parallel for private(i, j)
-        for (i = 0; i < M; ++i)
-            for (j = 0; j < N; ++j)
-                C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+            for (i = 0; i < M; ++i)
+                for (j = 0; j < N; ++j)
+                    C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+        }
+        char file[256] = {0};
+        sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+        visualize(file, M, N, C);
     }
-    char file[256] = {0};
-    sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
-    visualize(file, M, N, C);
 #endif
     mkl_free(C);
     mkl_free(B);
