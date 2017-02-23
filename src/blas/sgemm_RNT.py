@@ -208,9 +208,9 @@ def sgemm_gpu_code(asm):
     fmul(r0, r4, r5)
     for i in range(0, 7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(ra[i],  ra[i],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i],  rb[i],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -(2*i+2))
+        fadd(ra[i],  ra[i],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
     fadd(rb7,  rb7,  r0).fmul(r0, r4, r5)
     fadd(ra7,  ra7,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 1
@@ -219,9 +219,9 @@ def sgemm_gpu_code(asm):
     nop()                           .fmul(r0, r4, r5)
     for i in range(0, 7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(ra[i+8],  ra[i+8],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i+8],  rb[i+8],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -(2*i+2))
+        fadd(ra[i+8],  ra[i+8],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
     fadd(rb15,  rb15,  r0)          .fmul(r0, r4, r5)
     fadd(ra15,  ra15,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 2
@@ -230,9 +230,9 @@ def sgemm_gpu_code(asm):
     nop()                             .fmul(r0, r4, r5)
     for i in range(0, 7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(ra[i+16],  ra[i+16],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i+16],  rb[i+16],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -(2*i+2))
+        fadd(ra[i+16],  ra[i+16],  r0).fmul(r0, r4, r5)
         rotate(broadcast, r3, -15)
     fadd(rb23,  rb23,  r0)            .fmul(r0, r4, r5)
     fadd(ra23,  ra23,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 3
@@ -241,12 +241,12 @@ def sgemm_gpu_code(asm):
     nop()                             .fmul(r0, r4, r5)
     for i in range(0, 7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(ra[i+24],  ra[i+24],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i+24],  rb[i+24],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -(2*i+2))
+        fadd(ra[i+24],  ra[i+24],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
-    fadd(ra31,  ra31,  r0)            .fmul(r0, r4, r5)
-    fadd(rb31,  rb31,  r0)
+    fadd(rb31,  rb31,  r0)            .fmul(r0, r4, r5)
+    fadd(ra31,  ra31,  r0)
 
 
     # load TMU block 0,1,2,3
@@ -432,13 +432,13 @@ def sgemm_gpu_code(asm):
     mov(r1, uniform)        # r1=alpha
     mov(broadcast, uniform) # r5=beta
 
-    fmul(ra0, ra0, r1)
+    fmul(rb0, rb0, r1)
     fmul(r0, vpm, r5)
     for i in range(7):
-        fadd(vpm, ra[i], r0).fmul(rb[i], rb[i], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, rb[i], r0).fmul(ra[i+1], ra[i+1], r1)
+        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
         mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, rb7, r0).fmul(ra7, ra7, r1)
     mov(rb7, 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, ra7, r0)
@@ -475,13 +475,13 @@ def sgemm_gpu_code(asm):
     mov(r1, uniform)        # r1=alpha
     mov(broadcast, uniform) # r5=beta
 
-    fmul(ra8, ra8, r1)
+    fmul(rb8, rb8, r1)
     fmul(r0, vpm, r5)
     for i in range(8, 15):
-        fadd(vpm, ra[i], r0).fmul(rb[i], rb[i], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, rb[i], r0).fmul(ra[i+1], ra[i+1], r1)
+        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
         mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, rb15, r0).fmul(ra15, ra15, r1)
     mov(rb15, 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, ra15, r0)
@@ -524,13 +524,13 @@ def sgemm_gpu_code(asm):
     mov(r1, uniform)        # r1=alpha
     mov(broadcast, uniform) # r5=beta
 
-    fmul(ra16, ra16, r1)
+    fmul(rb16, rb16, r1)
     fmul(r0, vpm, r5)
     for i in range(16, 23):
-        fadd(vpm, ra[i], r0).fmul(rb[i], rb[i], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, rb[i], r0).fmul(ra[i+1], ra[i+1], r1)
+        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
         mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, rb23, r0).fmul(ra23, ra23, r1)
     mov(rb23, 0.0)     .fmul(r0, vpm, r5)
     fadd(vpm, ra23, r0)
@@ -562,17 +562,17 @@ def sgemm_gpu_code(asm):
     mov(r1, uniform)        # r1=alpha
     mov(broadcast, uniform) # r5=beta
 
-    fmul(ra24, ra24, r1)
+    fmul(rb24, rb24, r1)
     fmul(r0, vpm, r5)
     for i in range(24, 31):
-        fadd(vpm, ra[i], r0).fmul(rb[i], rb[i], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, rb[i], r0).fmul(ra[i+1], ra[i+1], r1)
+        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
         mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, ra31, r0).fmul(rb31, rb31, r1)
-    mov(ra31, 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, rb31, r0)
-    mov(rb31, 0.0)
+        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
+    fadd(vpm, rb31, r0).fmul(ra31, ra31, r1)
+    mov(rb31, 0.0)     .fmul(r0, vpm, r5)
+    fadd(vpm, ra31, r0)
+    mov(ra31, 0.0)
 
     # Issue store of block 3
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
