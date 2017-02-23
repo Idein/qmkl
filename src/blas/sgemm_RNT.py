@@ -197,6 +197,14 @@ def sgemm_gpu_code(asm):
     iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
     ldi(r0, 64)
     ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
+    iadd(r2, r2, r0, cond='zs')
+
+    # load TMU block 2
+    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_CUR_IDX)
+    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
+    ldi(r0, 64)
+    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
     iadd(r2, r2, r0, cond='zs', sig='load tmu1') # load TMU sig for block 0
 
     # block 0
@@ -209,15 +217,7 @@ def sgemm_gpu_code(asm):
         fadd(rb[i],  rb[i],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
     fadd(ra7,  ra7,  r0).fmul(r0, r4, r5)
-    fadd(rb7,  rb7,  r0)
-
-    # load TMU block 2
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs', sig='load tmu1') # load TMU sig for block 1
+    fadd(rb7,  rb7,  r0, sig='load tmu1') # load TMU sig for block 1
 
     # block 1
     rotate(broadcast, r3, -0)
@@ -249,9 +249,7 @@ def sgemm_gpu_code(asm):
         fadd(rb[i+16],  rb[i+16],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
     fadd(ra23,  ra23,  r0)            .fmul(r0, r4, r5)
-    fadd(rb23,  rb23,  r0)
-
-    nop(sig='load tmu1')  # load TMU sig for block 3
+    fadd(rb23,  rb23,  r0, sig='load tmu1') # load TMU sig for block 3
 
     # block 3
     rotate(broadcast, r3, -0)
