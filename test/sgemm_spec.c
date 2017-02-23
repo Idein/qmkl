@@ -35,12 +35,14 @@ static void visualize(const char* file, const int h, const int w, float* p) {
 #endif
 
 static void suite_sgemm_RNN();
+static void suite_sgemm_RTN();
 static void suite_sgemm_RTT();
 
 int main() {
     CU_initialize_registry();
 
     suite_sgemm_RNN();
+    suite_sgemm_RTN();
     suite_sgemm_RTT();
 
     isatty(fileno(stdout)) ? CU_console_run_tests() : CU_basic_run_tests();
@@ -213,6 +215,109 @@ static void test_sgemm_RNN_randoms(const int M, const int N, const int K) {
 }
 
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RNN_randoms);
+
+DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_ones);
+DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_randoms);
+
+int setup_suite_sgemm_RTN() {
+    srand(0xDEADBEEF);
+    return 0;
+}
+
+int teardown_suite_sgemm_RTN() {
+    return 0;
+}
+
+void suite_sgemm_RTN() {
+    CU_pSuite suite = CU_add_suite("sgemm RTN", setup_suite_sgemm_RTN, teardown_suite_sgemm_RTN);
+
+    CU_add_test(suite, "ones (small)", test_sgemm_RTN_ones_S);
+    CU_add_test(suite, "ones (medium)", test_sgemm_RTN_ones_M);
+    CU_add_test(suite, "ones (large)", test_sgemm_RTN_ones_L);
+    CU_add_test(suite, "randoms (small)", test_sgemm_RTN_randoms_S);
+    CU_add_test(suite, "randoms (medium)", test_sgemm_RTN_randoms_M);
+    CU_add_test(suite, "randoms (large)", test_sgemm_RTN_randoms_L);
+}
+
+static void test_sgemm_RTN_ones(const int M, const int N, const int K) {
+    float* A = mkl_malloc_ones(K, M);
+    float* B = mkl_malloc_ones(K, N);
+    float* C = mkl_malloc_ones(M, N);
+    cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, M, N, K, 1, A, M, B, N, 1, C, N);
+    int diff = 0;
+    {
+        int i, j;
+        for (i = 0; i < M; ++i)
+            for (j = 0; j < N; ++j)
+                diff |= K+1 - (int)C[i*N+j];
+        CU_ASSERT_EQUAL(diff, 0);
+    }
+#ifdef HAVE_PNG
+    if (diff) {
+        {
+            int i, j;
+#pragma omp parallel for private(i, j)
+            for (i = 0; i < M; ++i)
+                for (j = 0; j < N; ++j)
+                    C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+        }
+        char file[256] = {0};
+        sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+        visualize(file, M, N, C);
+    }
+#endif
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
+IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_ones);
+
+static void test_sgemm_RTN_randoms(const int M, const int N, const int K) {
+    float* A = mkl_malloc_randoms(K, M);
+    float* B = mkl_malloc_randoms(K, N);
+    float* C = mkl_malloc_randoms(M, N);
+    float* A_ref = malloc(K*M*sizeof(float));
+    float* B_ref = malloc(K*N*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, K*M*sizeof(float));
+    memcpy(B_ref, B, K*N*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, M, N, K, alpha, A, M, B, N, beta, C, N);
+    {
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[k*M+i] * B_ref[k*N+j];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+    }
+    {
+        float maximum_abs_error = 0;
+        int i, j;
+#pragma omp parallel for private(i, j) reduction(max: maximum_abs_error)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                if (maximum_abs_error < abs(C_ref[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = abs(C_ref[i*N+j] - C[i*N+j]);
+            }
+        }
+        CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
+IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_randoms);
 
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_ones);
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_randoms);
