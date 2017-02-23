@@ -160,13 +160,6 @@ def sgemm_gpu_code(asm):
     ldi(null, mask(B_CUR_IDX), set_flags=True)
     isub(r2, r5, r1, cond='zs')
 
-    # r1[e] = A_cur + A_stride*e   (e=element number)
-    nop()
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    imul24(r0, element_number, r5)
-    rotate(broadcast, r2, -A_CUR_IDX)
-    iadd(r1, r0, r5)
-
     #==== k-loop ====
     # r2[1] = q (k=q)
     nop()
@@ -174,38 +167,42 @@ def sgemm_gpu_code(asm):
     ldi(null, mask(K_IDX), set_flags=True)
     mov(r2, r5, cond='zs')
 
-    mov(tmu0_s, r1)
-    iadd(r1, r1, 4)
-    nop(sig='load tmu0')
+    # load TMU block 0,1,2,3
+    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_CUR_IDX)
+    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
+    ldi(r1, 16*4*1)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
+    ldi(r1, 16*4*2)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
+    ldi(r1, 16*4*3)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
+
+    rotate(broadcast, r2, -A_STRIDE_IDX)
+    imul24(r0, element_number, r5)
+    rotate(broadcast, r2, -A_CUR_IDX)
+    iadd(r1, r0, r5)
+    rotate(broadcast, r2, -Q_IDX)
+    mov(r0, r5)
+    rotate(broadcast, r2, -K_IDX)
+    isub(r0, r0, r5)
+    shl(r0, r0, 2)
+    iadd(r0, r0, r1)
+    mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k)*4
+
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    ldi(null, mask(B_CUR_IDX), set_flags=True)
+    iadd(r2, r2, r5, cond='zs',
+
+         sig='load tmu0')
     mov(r3, r4)
-    mov(tmu0_s, r1)
-    iadd(r1, r1, 4)
+    iadd(r0, r0, 4)
+    mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k+1)*4
 
     L.k_loop
 
-    # load TMU block 0
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs')
-
-    # load TMU block 1
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs')
-
-    # load TMU block 2
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs', sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 0
+    mov(broadcast, r3, sig='load tmu1') # load TMU sig for block 0
 
     # block 0
     fmul(r0, r4, r5)
@@ -226,16 +223,8 @@ def sgemm_gpu_code(asm):
         rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i+8],  rb[i+8],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
-    fadd(ra15,  ra15,  r0)          .fmul(r0, r4, r5)
-    fadd(rb15,  rb15,  r0)
-
-    # load TMU block 3
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64*3)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur -= 16*4*3
-    isub(r2, r2, r0, cond='zs', sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 2
+    fadd(rb15,  rb15,  r0)          .fmul(r0, r4, r5)
+    fadd(ra15,  ra15,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 2
 
     # block 2
     nop()                             .fmul(r0, r4, r5)
@@ -244,7 +233,7 @@ def sgemm_gpu_code(asm):
         fadd(ra[i+16],  ra[i+16],  r0).fmul(r0, r4, r5)
         rotate(broadcast, r3, -(2*i+2))
         fadd(rb[i+16],  rb[i+16],  r0).fmul(r0, r4, r5)
-    rotate(broadcast, r3, -15)
+        rotate(broadcast, r3, -15)
     fadd(rb23,  rb23,  r0)            .fmul(r0, r4, r5)
     fadd(ra23,  ra23,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 3
 
@@ -257,21 +246,51 @@ def sgemm_gpu_code(asm):
         fadd(rb[i+24],  rb[i+24],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
     fadd(ra31,  ra31,  r0)            .fmul(r0, r4, r5)
-    fadd(rb31,  rb31,  r0, sig='load tmu0')
+    fadd(rb31,  rb31,  r0)
 
-    mov(r3, r4).mov(tmu0_s, r1)
-    iadd(r1, r1, 4)
+
+    # load TMU block 0,1,2,3
+    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_CUR_IDX)
+    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
+    ldi(r1, 16*4*1)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
+    ldi(r1, 16*4*2)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
+    ldi(r1, 16*4*3)
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
+
+    nop(sig='load tmu0')
+    mov(r3, r4)
+    rotate(broadcast, r2, -A_STRIDE_IDX)
+    imul24(r0, element_number, r5)
+    rotate(broadcast, r2, -A_CUR_IDX)
+    iadd(r1, r0, r5)
+    rotate(broadcast, r2, -Q_IDX)
+    mov(r0, r5)
+    rotate(broadcast, r2, -K_IDX)
+    isub(r0, r0, r5)
+    iadd(r0, r0, 2)
+    shl(r0, r0, 2)
+    iadd(tmu0_s, r1, r0)
 
     ldi(null, mask(K_IDX), set_flags=True)
     isub(r2, r2, 1, cond='zs')
 
     jzc(L.k_loop)
-    rotate(broadcast, r2, -B_STRIDE_IDX)       # delay slot
-    ldi(null, mask(B_CUR_IDX), set_flags=True) # delay slot
-    iadd(r2, r2, r5, cond='zs')                # delay slot
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    ldi(null, mask(B_CUR_IDX), set_flags=True)
+    iadd(r2, r2, r5, cond='zs')
+
 
     #==== end of k-loop ====
+
     nop(sig='load tmu0')
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
 
     # nrows = min(P-((P+15)/16-i)*16, 16)
     rotate(broadcast, r2, -P_IDX)
@@ -463,10 +482,10 @@ def sgemm_gpu_code(asm):
         mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
         fadd(vpm, rb[i], r0).fmul(ra[i+1], ra[i+1], r1)
         mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, ra15, r0).fmul(rb15, rb15, r1)
-    mov(ra15, 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, rb15, r0)
-    mov(rb15, 0.0)
+    fadd(vpm, rb15, r0).fmul(ra15, ra15, r1)
+    mov(rb15, 0.0)     .fmul(r0, vpm, r5)
+    fadd(vpm, ra15, r0)
+    mov(ra15, 0.0)
 
     # Issue store of block 1
     rotate(broadcast, r3, -STORE_BLOCKS_IDX)
