@@ -183,13 +183,23 @@ def sgemm_gpu_code(asm):
 
     L.k_loop
 
-    # block 0
+    # load TMU block 0
     shl(r0, element_number, 2)
     rotate(broadcast, r2, -B_CUR_IDX)
     iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
     ldi(r0, 64)
     ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs', sig='load tmu1')
+    iadd(r2, r2, r0, cond='zs')
+
+    # load TMU block 1
+    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_CUR_IDX)
+    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
+    ldi(r0, 64)
+    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
+    iadd(r2, r2, r0, cond='zs', sig='load tmu1') # load TMU sig for block 0
+
+    # block 0
     rotate(broadcast, r3, -0)
     fmul(r0, r4, r5)
     for i in range(0, 7):
@@ -201,13 +211,15 @@ def sgemm_gpu_code(asm):
     fadd(ra7,  ra7,  r0).fmul(r0, r4, r5)
     fadd(rb7,  rb7,  r0)
 
-    # block 1
+    # load TMU block 2
     shl(r0, element_number, 2)
     rotate(broadcast, r2, -B_CUR_IDX)
     iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
     ldi(r0, 64)
     ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs', sig='load tmu1')
+    iadd(r2, r2, r0, cond='zs', sig='load tmu1') # load TMU sig for block 1
+
+    # block 1
     rotate(broadcast, r3, -0)
     nop()                           .fmul(r0, r4, r5)
     for i in range(0, 7):
@@ -219,13 +231,15 @@ def sgemm_gpu_code(asm):
     fadd(ra15,  ra15,  r0)          .fmul(r0, r4, r5)
     fadd(rb15,  rb15,  r0)
 
-    # block 2
+    # load TMU block 3
     shl(r0, element_number, 2)
     rotate(broadcast, r2, -B_CUR_IDX)
     iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur += 16*4
-    iadd(r2, r2, r0, cond='zs', sig='load tmu1')
+    ldi(r0, 64*3)
+    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur -= 16*4*3
+    isub(r2, r2, r0, cond='zs', sig='load tmu1') # load TMU sig for block 2
+
+    # block 2
     rotate(broadcast, r3, -0)
     nop()                             .fmul(r0, r4, r5)
     for i in range(0, 7):
@@ -237,13 +251,9 @@ def sgemm_gpu_code(asm):
     fadd(ra23,  ra23,  r0)            .fmul(r0, r4, r5)
     fadd(rb23,  rb23,  r0)
 
+    nop(sig='load tmu1')  # load TMU sig for block 3
+
     # block 3
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(tmu1_s, r0, r5) # tmu1[e] = B_cur + 4*e
-    ldi(r0, 64*3)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)   # B_cur -= 16*4*3
-    isub(r2, r2, r0, cond='zs', sig='load tmu1')
     rotate(broadcast, r3, -0)
     nop()                             .fmul(r0, r4, r5)
     for i in range(0, 7):
