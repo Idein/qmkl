@@ -48,6 +48,7 @@ void launch_qpu_code_mailbox(uint32_t num_qpus, uint32_t noflush, uint32_t timeo
 {
     unsigned i;
     va_list ap;
+    uint32_t ret;
 
     if (num_qpus > MAX_QPUS)
         error_fatal("Too many QPUs: %d (max:%d)\n", num_qpus, MAX_QPUS);
@@ -59,5 +60,7 @@ void launch_qpu_code_mailbox(uint32_t num_qpus, uint32_t noflush, uint32_t timeo
     }
     va_end(ap);
 
-    mailbox_qpu_execute(fd_mb, num_qpus, ml_control_gpu, noflush, timeout);
+    ret = mailbox_qpu_execute(fd_mb, num_qpus, ml_control_gpu, noflush, timeout);
+    if (ret)
+        xerbla_local(ret);
 }
