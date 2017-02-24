@@ -130,7 +130,7 @@ static void cblas_sgemm_RNN(
             h_acc += hi;
         }
     }
-    launch_qpu_code_mailbox(n_threads, 1, 5e3,
+    launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  2 * unif_len_1th, code_common_gpu,
@@ -232,7 +232,7 @@ static void cblas_sgemm_RTN(
             h_acc += hi;
         }
     }
-    launch_qpu_code_mailbox(n_threads, 1, 5e3,
+    launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  2 * unif_len_1th, code_common_gpu,
@@ -334,7 +334,7 @@ static void cblas_sgemm_RTT(
             h_acc += hi;
         }
     }
-    launch_qpu_code_mailbox(n_threads, 1, 5e3,
+    launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  2 * unif_len_1th, code_common_gpu,
