@@ -79,12 +79,12 @@ def sgemm_gpu_code(asm):
     #==== Variables ====
 
     # A_base = address of A[0,0] + (p+15)/16*16*A_stride
-    # B_base = address of B[0,0]                         + (r+63)/64*64*4
+    # B_base = address of B[0,0]                         + (r+63)/64*64*B_stride
     # C_base = address of C[0,0] + (p+15)/16*16*C_stride + (r+63)/64*64*4
 
-    # A_cur = A_base - 16*i*A_stride
-    # B_cur = B_base                 - 4*64*j
-    # C_cur = C_base - 16*i*C_stride - 4*64*j
+    # A_cur = A_base - i*16*A_stride
+    # B_cur = B_base                 - j*64*b_stride
+    # C_cur = C_base - i*16*C_stride - j*64*4
 
     rotate(broadcast, r2, -P_IDX)
     iadd(r0, r5, 15)
@@ -94,14 +94,17 @@ def sgemm_gpu_code(asm):
     ldi(r1, 63)
     iadd(r1, r1, r5)
     shr(r1, r1, 6)
-    shl(r1, r1, 8)                  # r1=(r+63)/64*64*4
+    shl(r1, r1, 6)                  # r1=(r+63)/64*64
     rotate(broadcast, r2, -A_STRIDE_IDX)
     imul24(r3, r5, r0)              # r3=(p+15)/16*16*A_stride
     ldi(null, mask(A_BASE_IDX), set_flags=True)
     iadd(r2, r2, r3, cond='zs')
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    imul24(r3, r1, r5)              # r3=(r+63)/64*64*B_stride
     ldi(null, mask(B_BASE_IDX), set_flags=True)
-    iadd(r2, r2, r1, cond='zs')
+    iadd(r2, r2, r3, cond='zs')
     rotate(broadcast, r2, -C_STRIDE_IDX)
+    shl(r1, r1, 2)                  # r1=(r+63)/64*64*4
     imul24(r3, r5, r0)              # r3=(p+15)/16*16*C_stride
     ldi(null, mask(C_BASE_IDX), set_flags=True)
     iadd(r2, r2, r3, cond='zs', set_flags=False)
@@ -156,9 +159,13 @@ def sgemm_gpu_code(asm):
     isub(r2, r5, r0, cond='zs', set_flags=False)
     isub(r2, r2, r1, cond='zs')
 
+    rotate(broadcast, r2, -J_IDX)
+    shl(r0, r5, 6)                          # r0=64*j
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    imul24(r0, r0, r5)                      # r0=64*j*B_stride
     rotate(broadcast, r2, -B_BASE_IDX)
     ldi(null, mask(B_CUR_IDX), set_flags=True)
-    isub(r2, r5, r1, cond='zs')
+    isub(r2, r5, r0, cond='zs')
 
     #==== k-loop ====
     # r2[1] = q (k=q)
@@ -168,16 +175,18 @@ def sgemm_gpu_code(asm):
     mov(r2, r5, cond='zs')
 
     # load TMU block 0,1,2,3
-    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    imul24(r0, element_number, r5)    # r0[e] = B_stride*e
+    shl(r1, r5, 4)                    # r1 = 16*B_stride
     rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
-    ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
-    ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
-    ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
+    iadd(r0, r0, r5)                  # r0[e] = B_cur + B_stride*e
+    mov(tmu1_s, r0)                   # tmu1[e] = B_cur + B_stride*e + 16*B_stride*0
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)                   # tmu1[e] = B_cur + B_stride*e + 16*B_stride*1
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)                   # tmu1[e] = B_cur + B_stride*e + 16*B_stride*2
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)                   # tmu1[e] = B_cur + B_stride*e + 16*B_stride*3
 
     rotate(broadcast, r2, -A_STRIDE_IDX)
     imul24(r0, element_number, r5)
@@ -191,11 +200,10 @@ def sgemm_gpu_code(asm):
     iadd(r0, r0, r1)
     mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k)*4
 
-    rotate(broadcast, r2, -B_STRIDE_IDX)
     ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs',
+    iadd(r2, r2, 4, cond='zs')
 
-         sig='load tmu0')
+    nop(sig='load tmu0')
     mov(r3, r4)
     iadd(r0, r0, 4)
     mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k+1)*4
@@ -248,18 +256,19 @@ def sgemm_gpu_code(asm):
     fadd(rb31,  rb31,  r0)            .fmul(r0, r4, r5)
     fadd(ra31,  ra31,  r0)
 
-
     # load TMU block 0,1,2,3
-    shl(r0, element_number, 2)
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    imul24(r0, element_number, r5)
+    shl(r1, r5, 4)       # r1 = 16*B_stride
     rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
-    ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
-    ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
-    ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
+    iadd(r0, r0, r5)     # r0 = B_cur + B_stride*e
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + B_stride*e + 16*B_stride*0
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + B_stride*e + 16*B_stride*1
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + B_stride*e + 16*B_stride*2
+    iadd(r0, r0, r1)
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + B_stride*e + 16*B_stride*3
 
     nop(sig='load tmu0')
     mov(r3, r4)
@@ -279,9 +288,9 @@ def sgemm_gpu_code(asm):
     isub(r2, r2, 1, cond='zs')
 
     jzc(L.k_loop)
-    rotate(broadcast, r2, -B_STRIDE_IDX)
+    nop()
     ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs')
+    iadd(r2, r2, 4, cond='zs')
 
 
     #==== end of k-loop ====
@@ -648,14 +657,14 @@ def main():
         # Allocate matrices.
         C = drv.alloc((p, r), 'float32')
         A = drv.alloc((p, q), 'float32')
-        B = drv.alloc((q, r), 'float32')
+        B = drv.alloc((r, q), 'float32') # Trans Q x R
 
         # Initialize matrices.
         np.random.seed(0)
         alpha = 1.0
         beta = 1.0
         A[:] = np.random.randn(p, q) # np.ones(shape=(p, q)) #
-        B[:] = np.random.randn(q, r) # np.ones(shape=(q, r)) #
+        B[:] = np.random.randn(r, q) # np.ones(shape=(r, q)) #
         C[:] = np.random.randn(p, r) # np.ones(shape=(p, r)) # np.arange(p*r).reshape(p, r) + 1 #
 
         # Reference
@@ -663,7 +672,7 @@ def main():
         RB = B.copy()
         RC = C.copy()
         start = time.time()
-        R = alpha*RA.dot(RB) + beta*RC
+        R = alpha*RA.dot(RB.T) + beta*RC
         elapsed_ref = time.time() - start
 
         # Allocate uniforms.
@@ -695,7 +704,7 @@ def main():
                 uniforms[th, 2] = q
                 uniforms[th, 3] = wj
                 uniforms[th, 4] = A.addresses()[h_acc, 0    ]
-                uniforms[th, 5] = B.addresses()[0,     w_acc]
+                uniforms[th, 5] = B.addresses()[w_acc, 0    ]
                 uniforms[th, 6] = C.addresses()[h_acc, w_acc]
                 th += 1
                 w_acc += wj;
