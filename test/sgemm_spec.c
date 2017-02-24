@@ -4,10 +4,17 @@
 #ifdef HAVE_PNG
 #include <png.h>
 #endif
+#include <sys/time.h>
+#include <omp.h>
 #include <CUnit/Basic.h>
 #include <CUnit/Console.h>
 #include "mkl.h"
 
+static double get_time() {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return (double)t.tv_sec + t.tv_usec * 1e-6;
+}
 
 #ifdef HAVE_PNG
 static void visualize(const char* file, const int h, const int w, float* p) {
@@ -59,6 +66,7 @@ int main() {
     static void TEST_FUNCTION##_L();
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RNN_ones);
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RNN_randoms);
+static void test_sgemm_RNN_benchmark();
 
 int setup_suite_sgemm_RNN() {
     srand(0xDEADBEEF);
@@ -78,6 +86,7 @@ void suite_sgemm_RNN() {
     CU_add_test(suite, "randoms (small)", test_sgemm_RNN_randoms_S);
     CU_add_test(suite, "randoms (medium)", test_sgemm_RNN_randoms_M);
     CU_add_test(suite, "randoms (large)", test_sgemm_RNN_randoms_L);
+    CU_add_test(suite, "benchmark", test_sgemm_RNN_benchmark);
 }
 
 static float* mkl_malloc_ones(const int m, const int n) {
@@ -218,8 +227,55 @@ static void test_sgemm_RNN_randoms(const int M, const int N, const int K) {
 
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RNN_randoms);
 
+void test_sgemm_RNN_benchmark() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    float* A = mkl_malloc_randoms(M, K);
+    float* B = mkl_malloc_randoms(K, N);
+    float* C = mkl_malloc_randoms(M, N);
+    float* A_ref = malloc(K*M*sizeof(float));
+    float* B_ref = malloc(N*K*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, M*K*sizeof(float));
+    memcpy(B_ref, B, K*N*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    printf("\nRNN: %dx%d * %dx%d\n", M, K, K, N);
+    {
+        double start = get_time();
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A, K, B, N, beta, C, N);
+        double elapsed_time = get_time() - start;
+        printf("GPU:             %9.6lf [sec], %9.6lf [Gflop/s]\n",
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    {
+        double start = get_time();
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[i*K+k] * B_ref[k*N+j];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+        double elapsed_time = get_time() - start;
+        printf("CPU (%d threads): %9.6lf [sec], %9.6lf [Gflop/s]\n", omp_get_max_threads(),
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RNT_ones);
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RNT_randoms);
+static void test_sgemm_RNT_benchmark();
 
 int setup_suite_sgemm_RNT() {
     srand(0xDEADBEEF);
@@ -239,6 +295,7 @@ void suite_sgemm_RNT() {
     CU_add_test(suite, "randoms (small)", test_sgemm_RNT_randoms_S);
     CU_add_test(suite, "randoms (medium)", test_sgemm_RNT_randoms_M);
     CU_add_test(suite, "randoms (large)", test_sgemm_RNT_randoms_L);
+    CU_add_test(suite, "benchmark", test_sgemm_RNT_benchmark);
 }
 
 static void test_sgemm_RNT_ones(const int M, const int N, const int K) {
@@ -321,8 +378,55 @@ static void test_sgemm_RNT_randoms(const int M, const int N, const int K) {
 
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RNT_randoms);
 
+void test_sgemm_RNT_benchmark() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    float* A = mkl_malloc_randoms(M, K);
+    float* B = mkl_malloc_randoms(N, K);
+    float* C = mkl_malloc_randoms(M, N);
+    float* A_ref = malloc(M*K*sizeof(float));
+    float* B_ref = malloc(N*K*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, M*K*sizeof(float));
+    memcpy(B_ref, B, N*K*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    printf("\nRNT: %dx%d * %dx%d\n", M, K, K, N);
+    {
+        double start = get_time();
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, M, N, K, alpha, A, K, B, K, beta, C, N);
+        double elapsed_time = get_time() - start;
+        printf("GPU:             %9.6lf [sec], %9.6lf [Gflop/s]\n",
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    {
+        double start = get_time();
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[i*K+k] * B_ref[j*K+k];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+        double elapsed_time = get_time() - start;
+        printf("CPU (%d threads): %9.6lf [sec], %9.6lf [Gflop/s]\n", omp_get_max_threads(),
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_ones);
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_randoms);
+static void test_sgemm_RTN_benchmark();
 
 int setup_suite_sgemm_RTN() {
     srand(0xDEADBEEF);
@@ -342,6 +446,7 @@ void suite_sgemm_RTN() {
     CU_add_test(suite, "randoms (small)", test_sgemm_RTN_randoms_S);
     CU_add_test(suite, "randoms (medium)", test_sgemm_RTN_randoms_M);
     CU_add_test(suite, "randoms (large)", test_sgemm_RTN_randoms_L);
+    CU_add_test(suite, "benchmark", test_sgemm_RTN_benchmark);
 }
 
 static void test_sgemm_RTN_ones(const int M, const int N, const int K) {
@@ -424,8 +529,55 @@ static void test_sgemm_RTN_randoms(const int M, const int N, const int K) {
 
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RTN_randoms);
 
+void test_sgemm_RTN_benchmark() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    float* A = mkl_malloc_randoms(K, M);
+    float* B = mkl_malloc_randoms(K, N);
+    float* C = mkl_malloc_randoms(M, N);
+    float* A_ref = malloc(K*M*sizeof(float));
+    float* B_ref = malloc(K*N*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, K*M*sizeof(float));
+    memcpy(B_ref, B, K*N*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    printf("\nRTN: %dx%d * %dx%d\n", M, K, K, N);
+    {
+        double start = get_time();
+        cblas_sgemm(CblasRowMajor, CblasTrans, CblasNoTrans, M, N, K, alpha, A, M, B, N, beta, C, N);
+        double elapsed_time = get_time() - start;
+        printf("GPU:             %9.6lf [sec], %9.6lf [Gflop/s]\n",
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    {
+        double start = get_time();
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[k*M+i] * B_ref[k*N+j];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+        double elapsed_time = get_time() - start;
+        printf("CPU (%d threads): %9.6lf [sec], %9.6lf [Gflop/s]\n", omp_get_max_threads(),
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
+
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_ones);
 DECL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_randoms);
+static void test_sgemm_RTT_benchmark();
 
 int setup_suite_sgemm_RTT() {
     srand(0xDEADBEEF);
@@ -445,6 +597,7 @@ void suite_sgemm_RTT() {
     CU_add_test(suite, "randoms (small)", test_sgemm_RTT_randoms_S);
     CU_add_test(suite, "randoms (medium)", test_sgemm_RTT_randoms_M);
     CU_add_test(suite, "randoms (large)", test_sgemm_RTT_randoms_L);
+    CU_add_test(suite, "benchmark", test_sgemm_RTT_benchmark);
 }
 
 static void test_sgemm_RTT_ones(const int M, const int N, const int K) {
@@ -526,3 +679,49 @@ static void test_sgemm_RTT_randoms(const int M, const int N, const int K) {
 }
 
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_randoms);
+
+void test_sgemm_RTT_benchmark() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    float* A = mkl_malloc_randoms(K, M);
+    float* B = mkl_malloc_randoms(N, K);
+    float* C = mkl_malloc_randoms(M, N);
+    float* A_ref = malloc(K*M*sizeof(float));
+    float* B_ref = malloc(N*K*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, K*M*sizeof(float));
+    memcpy(B_ref, B, N*K*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    printf("\nRTT: %dx%d * %dx%d\n", M, K, K, N);
+    {
+        double start = get_time();
+        cblas_sgemm(CblasRowMajor, CblasTrans, CblasTrans, M, N, K, alpha, A, M, B, K, beta, C, N);
+        double elapsed_time = get_time() - start;
+        printf("GPU:             %9.6lf [sec], %9.6lf [Gflop/s]\n",
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    {
+        double start = get_time();
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[k*M+i] * B_ref[j*K+k];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+        double elapsed_time = get_time() - start;
+        printf("CPU (%d threads): %9.6lf [sec], %9.6lf [Gflop/s]\n", omp_get_max_threads(),
+               elapsed_time, (2 * M * N * K + 3 * M * N) / elapsed_time * 1e-9);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(C);
+    mkl_free(B);
+    mkl_free(A);
+}
