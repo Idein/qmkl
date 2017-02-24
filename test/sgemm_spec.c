@@ -200,8 +200,8 @@ static void test_sgemm_RNN_randoms(const int M, const int N, const int K) {
 #pragma omp parallel for private(i, j) reduction(max: maximum_abs_error)
         for (i = 0; i < M; ++i) {
             for (j = 0; j < N; ++j) {
-                if (maximum_abs_error < abs(C_ref[i*N+j] - C[i*N+j]))
-                    maximum_abs_error = abs(C_ref[i*N+j] - C[i*N+j]);
+                if (maximum_abs_error < fabsf(C_ref[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = fabsf(C_ref[i*N+j] - C[i*N+j]);
             }
         }
         CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
@@ -303,8 +303,8 @@ static void test_sgemm_RTN_randoms(const int M, const int N, const int K) {
 #pragma omp parallel for private(i, j) reduction(max: maximum_abs_error)
         for (i = 0; i < M; ++i) {
             for (j = 0; j < N; ++j) {
-                if (maximum_abs_error < abs(C_ref[i*N+j] - C[i*N+j]))
-                    maximum_abs_error = abs(C_ref[i*N+j] - C[i*N+j]);
+                if (maximum_abs_error < fabsf(C_ref[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = fabsf(C_ref[i*N+j] - C[i*N+j]);
             }
         }
         CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
@@ -406,8 +406,8 @@ static void test_sgemm_RTT_randoms(const int M, const int N, const int K) {
 #pragma omp parallel for private(i, j) reduction(max: maximum_abs_error)
         for (i = 0; i < M; ++i) {
             for (j = 0; j < N; ++j) {
-                if (maximum_abs_error < abs(C_ref[i*N+j] - C[i*N+j]))
-                    maximum_abs_error = abs(C_ref[i*N+j] - C[i*N+j]);
+                if (maximum_abs_error < fabsf(C_ref[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = fabsf(C_ref[i*N+j] - C[i*N+j]);
             }
         }
         CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
