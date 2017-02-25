@@ -681,8 +681,8 @@ static void test_sgemm_RTT_randoms(const int M, const int N, const int K) {
 IMPL_TEST_FOR_EACH_SIZE(test_sgemm_RTT_randoms);
 
 void test_sgemm_RTT_benchmark() {
-    const int M = 96;
-    const int N = 3072;
+    const int M = 3072;
+    const int N = 96;
     const int K = 363;
     float* A = mkl_malloc_randoms(K, M);
     float* B = mkl_malloc_randoms(N, K);
