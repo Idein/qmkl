@@ -151,6 +151,11 @@ li cond_add=al waddr_add=VPM_WRITE_SETUP_16_RA imm=`0b_00_000000000000_000001_1_
 li cond_add=al waddr_add=VPM_WRITE_SETUP_32_RA imm=`0b_00_000000000000_000001_1_0_10__00_100000`
 
 
+;                                                + DMA store stride setup
+;                                                |                + blockmode = 0
+;                                                |                |     + stride = 0
+li cond_mul=al waddr_mul=vpmvcd_wr_setup imm=`0b_11_0000000000000_0_000_0000000000000`
+
 
 ; #init-1
 ; Load: y = 0
