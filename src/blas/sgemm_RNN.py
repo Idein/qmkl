@@ -150,9 +150,8 @@ def sgemm_gpu_code(asm):
     #==== k-loop ====
     # r2[1] = q (k=q)
     nop()
-    rotate(broadcast, r2, -Q_IDX)
     ldi(null, mask(K_IDX), set_flags=True)
-    mov(r2, r5, cond='zs')
+    mov(r2, 1, cond='zs')
 
     # load TMU block 0,1,2,3
     rotate(broadcast, r2, -J_IDX)
@@ -181,7 +180,7 @@ def sgemm_gpu_code(asm):
     nop(sig='load tmu0')
     mov(r3, r4)
     iadd(r0, r0, 4)
-    mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k+1)*4
+    mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + 4
 
     L.k_loop
 
@@ -231,29 +230,25 @@ def sgemm_gpu_code(asm):
     fadd(rb31,  rb31,  r0)            .fmul(r0, r4, r5)
     fadd(ra31,  ra31,  r0)
 
-
     # load TMU block 0,1,2,3
     rotate(broadcast, r2, -J_IDX)
     shl(r1, r5, 2)                          # r1=j*4
     rotate(broadcast, r2, -B_BASE_IDX)
     isub(r1, r5, r1)                        # B_cur = B_base-j*4
-    rotate(broadcast, r2, -Q_IDX)
-    mov(r0, r5)
     rotate(broadcast, r2, -K_IDX)
-    isub(r0, r0, r5)
-    iadd(r0, r0, 1)
+    mov(r0, r5)
     rotate(broadcast, r2, -B_STRIDE_IDX)
     imul24(r0, r0, r5)
     iadd(r1, r1, r0)
     shl(r0, element_number, 2)
-    iadd(r0, r0, r1)     # r0 = B_cur + (q-k)*B_stride + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*0
+    iadd(r0, r0, r1)     # r0 = B_cur + k*B_stride + 4*e
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + k*B_stride + 4*e + 16*4*0
     ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*1
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + k*B_stride + 4*e + 16*4*1
     ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*2
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + k*B_stride + 4*e + 16*4*2
     ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*3
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + k*B_stride + 4*e + 16*4*3
 
     nop(sig='load tmu0')
     mov(r3, r4)
@@ -265,20 +260,20 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r2, -A_BASE_IDX)
     isub(r0, r5, r0)
     iadd(r1, r1, r0)
-    rotate(broadcast, r2, -Q_IDX)
-    mov(r0, r5)
     rotate(broadcast, r2, -K_IDX)
-    isub(r0, r0, r5)
-    iadd(r0, r0, 2)
-
-    ldi(null, mask(K_IDX), set_flags=True)
-    isub(r2, r2, 1, cond='zs')
-
-    jzc(L.k_loop)
+    iadd(r0, r5, 1)
     shl(r0, r0, 2)
     iadd(r0, r0, r1)
-    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e + (q-k+2)*4
 
+    rotate(broadcast, r2, -Q_IDX)
+    mov(r1, r5)
+    rotate(broadcast, r2, -K_IDX)
+    isub(r1, r1, r5)
+
+    jzc(L.k_loop)
+    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e + (k+1)*4
+    ldi(null, mask(K_IDX), set_flags=True)
+    iadd(r2, r2, 1, cond='zs')
 
     #==== end of k-loop ====
 
