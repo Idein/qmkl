@@ -21,7 +21,7 @@ def sgemm_gpu_code(asm):
     LOAD_SETUP_IDXS = [0]*4
     STORE_SETUP_IDXS = [0]*4
 
-    B_CUR_IDX = 0;       LOAD_BLOCKS_IDX = 0
+    B_CUR_IDX = None;    LOAD_BLOCKS_IDX = 0
     K_IDX = 1;           STORE_BLOCKS_IDX = 1
     I_IDX = 2;           NROWS_IDX = 2
     J_IDX = 3;           NCOLS_IDXS[0] = 3
@@ -83,12 +83,9 @@ def sgemm_gpu_code(asm):
     mov(r0, r5)
     rotate(broadcast, r2, -A_STRIDE_IDX)
     imul24(r0, r0, r5)
-    # r1 = (r+63)/64*64*4
+    # r1 = r*4
     rotate(broadcast, r2, -R_IDX)
-    ldi(r1, 63)
-    iadd(r1, r1, r5)
-    shr(r1, r1, 6)
-    shl(r1, r1, 8)
+    shl(r1, r5, 2)
     # r3 = p*C_stride
     rotate(broadcast, r2, -P_IDX)
     mov(r3, r5)
@@ -99,18 +96,18 @@ def sgemm_gpu_code(asm):
     ldi(null, mask(A_BASE_IDX), set_flags=True)
     iadd(r2, r2, r0, cond='zs')
 
-    # B_base = address of B[0,0]              + (r+63)/64*64*4
+    # B_base = address of B[0,0]              + r*4
     ldi(null, mask(B_BASE_IDX), set_flags=True)
     iadd(r2, r2, r1, cond='zs')
 
-    # C_base = address of C[0,0] + p*C_stride + (r+63)/64*64*4
+    # C_base = address of C[0,0] + p*C_stride + r*4
     ldi(null, mask(C_BASE_IDX), set_flags=True)
     iadd(r2, r2, r3, cond='zs', set_flags=False)
     iadd(r2, r2, r1, cond='zs')
 
     # A_cur = A_base - i*A_stride
-    # B_cur = B_base              - 4*64*j
-    # C_cur = C_base - i*C_stride - 4*64*j
+    # B_cur = B_base              - j*4
+    # C_cur = C_base - i*C_stride - j*4
 
     # Disable swapping of two TMUs.
     mov(tmu_noswap, 1)
@@ -132,12 +129,10 @@ def sgemm_gpu_code(asm):
     #==== j-loop ====
 
     # Initialize j.
-    # j=(r+63)/64.
+    # j=r.
     rotate(broadcast, r2, -R_IDX)
-    ldi(r0, 63)
-    iadd(r0, r0, r5)
     ldi(null, mask(J_IDX), set_flags=True)
-    shr(r2, r0, 6, cond='zs')
+    mov(r2, r5, cond='zs')
 
     L.j_loop
 
@@ -146,15 +141,11 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r2, -C_STRIDE_IDX)
     imul24(r0, r0, r5)                      # r0=i*C_stride
     rotate(broadcast, r2, -J_IDX)
-    shl(r1, r5, 8)                          # r1=4*64*j
+    shl(r1, r5, 2)                          # r1=j*4
     rotate(broadcast, r2, -C_BASE_IDX)
     ldi(null, mask(C_CUR_IDX), set_flags=True)
     isub(r2, r5, r0, cond='zs', set_flags=False)
     isub(r2, r2, r1, cond='zs')
-
-    rotate(broadcast, r2, -B_BASE_IDX)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)
-    isub(r2, r5, r1, cond='zs')
 
     #==== k-loop ====
     # r2[1] = q (k=q)
@@ -164,9 +155,12 @@ def sgemm_gpu_code(asm):
     mov(r2, r5, cond='zs')
 
     # load TMU block 0,1,2,3
+    rotate(broadcast, r2, -J_IDX)
+    shl(r1, r5, 2)                          # r1=j*4
+    rotate(broadcast, r2, -B_BASE_IDX)
+    isub(r1, r5, r1)
     shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
+    iadd(r0, r0, r1)     # r0 = B_cur + 4*e
     mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
     ldi(r1, 16*4*1)
     iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
@@ -182,20 +176,9 @@ def sgemm_gpu_code(asm):
     imul24(r1, element_number, r5)
     rotate(broadcast, r2, -A_BASE_IDX)
     isub(r0, r5, r0)
-    iadd(r1, r1, r0)
-    rotate(broadcast, r2, -Q_IDX)
-    mov(r0, r5)
-    rotate(broadcast, r2, -K_IDX)
-    isub(r0, r0, r5)
-    shl(r0, r0, 2)
     iadd(r0, r0, r1)
-    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e + (q-k)*4
-
-    rotate(broadcast, r2, -B_STRIDE_IDX)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs',
-
-         sig='load tmu0')
+    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e
+    nop(sig='load tmu0')
     mov(r3, r4)
     iadd(r0, r0, 4)
     mov(tmu0_s, r0) # r1[e] = A_cur + A_stride*e + (q-k+1)*4
@@ -250,16 +233,27 @@ def sgemm_gpu_code(asm):
 
 
     # load TMU block 0,1,2,3
+    rotate(broadcast, r2, -J_IDX)
+    shl(r1, r5, 2)                          # r1=j*4
+    rotate(broadcast, r2, -B_BASE_IDX)
+    isub(r1, r5, r1)                        # B_cur = B_base-j*4
+    rotate(broadcast, r2, -Q_IDX)
+    mov(r0, r5)
+    rotate(broadcast, r2, -K_IDX)
+    isub(r0, r0, r5)
+    iadd(r0, r0, 1)
+    rotate(broadcast, r2, -B_STRIDE_IDX)
+    imul24(r0, r0, r5)
+    iadd(r1, r1, r0)
     shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
+    iadd(r0, r0, r1)     # r0 = B_cur + (q-k)*B_stride + 4*e
+    mov(tmu1_s, r0)      # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*0
     ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*1
     ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*2
     ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
+    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + (q-k)*B_stride + 4*e + 16*4*3
 
     nop(sig='load tmu0')
     mov(r3, r4)
@@ -276,26 +270,23 @@ def sgemm_gpu_code(asm):
     rotate(broadcast, r2, -K_IDX)
     isub(r0, r0, r5)
     iadd(r0, r0, 2)
-    shl(r0, r0, 2)
-    iadd(r0, r0, r1)
-    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e + (q-k+2)*4
 
     ldi(null, mask(K_IDX), set_flags=True)
     isub(r2, r2, 1, cond='zs')
 
     jzc(L.k_loop)
-    rotate(broadcast, r2, -B_STRIDE_IDX)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs')
+    shl(r0, r0, 2)
+    iadd(r0, r0, r1)
+    mov(tmu0_s, r0) # r1[e] = (A_cur = A_base - i*A_stride) + A_stride*e + (q-k+2)*4
 
 
     #==== end of k-loop ====
 
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
+    nop(sig='load tmu1')
     nop(sig='load tmu0')
-    nop(sig='load tmu1')
-    nop(sig='load tmu1')
-    nop(sig='load tmu1')
-    nop(sig='load tmu1')
 
     # nrows = min(i, 16)
     rotate(broadcast, r2, -I_IDX)
@@ -304,22 +295,13 @@ def sgemm_gpu_code(asm):
     imin(r3, r1, r5, cond='zs')
 
     for block in range(4):
-        # ncols = min(R-(((R+63)/64-j)*4+block)*16, 16)
-        ldi(r1, 63)
-        rotate(broadcast, r2, -R_IDX)
-        iadd(r1, r1, r5)
-        shr(r1, r1, 6)
+        # ncols = min(j-block*16, 16)
+        ldi(r1, block*16)
         rotate(broadcast, r2, -J_IDX)
-        isub(r1, r1, r5)
-        shl(r1, r1, 2)
-        iadd(r1, r1, block)
-        shl(r1, r1, 4)
-        rotate(broadcast, r2, -R_IDX)
         isub(r1, r5, r1)
-        rotate(broadcast, r1, 0)
+        mov(broadcast, r1)
         ldi(r1, 16)
         imin(r1, r1, r5)
-        # band(r1, r1, 0xF)
         ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
         mov(r3, r1, cond='zs')
 
@@ -374,18 +356,10 @@ def sgemm_gpu_code(asm):
         rotate(broadcast, r3, -STORE_SETUP_IDXS[block])
         mov(vpmvcd_wr_setup, r5)
 
-    # blocks = min((R-((R+63)/64-j)*64+15)/16, 4)
-    ldi(r1, 63)                   # 63
-    rotate(broadcast, r2, -R_IDX)
-    iadd(r1, r1, r5)              # R+63
-    shr(r1, r1, 6)                # (R+63)/64
+    # blocks = min((j+15)/16, 4)
     rotate(broadcast, r2, -J_IDX)
-    isub(r1, r1, r5)              # (R+63)/64-j
-    shl(r1, r1, 6)                # ((R+63)/64-j)*64
-    rotate(broadcast, r2, -R_IDX)
-    isub(r1, r5, r1)              # R-((R+63)/64-j)*64
-    iadd(r1, r1, 15)              # R-((R+63)/64-j)*64+15
-    shr(r1, r1, 4)                # (R-((R+63)/64-j)*64+15)/16
+    iadd(r1, r5, 15)
+    shr(r1, r1, 4)
     imin(r1, r1, 4)
     ldi(null, mask(LOAD_BLOCKS_IDX, STORE_BLOCKS_IDX), set_flags=True)
     mov(r3, r1, cond='zs')
@@ -590,7 +564,9 @@ def sgemm_gpu_code(asm):
     mutex_release()
 
     rotate(broadcast, r2, -J_IDX)
-    isub(r0, r5, 1)
+    ldi(r1, 64)
+    isub(r0, r5, r1) # r0 = J-64
+    imax(r0, r0, 0)
     jzc(L.j_loop)   # Jump iz Z-flags are clear
     ldi(null, mask(J_IDX), set_flags=True)  # delay slot
     mov(r2, r0, cond='zs')                  # delay slot
@@ -598,7 +574,7 @@ def sgemm_gpu_code(asm):
 
     rotate(broadcast, r2, -I_IDX)
     ldi(r1, 16)
-    isub(r0, r5, r1, set_flags=True) # r0 = I-16
+    isub(r0, r5, r1) # r0 = I-16
     imax(r0, r0, 0)
     jzc(L.i_loop)
     ldi(null, mask(I_IDX), set_flags=True)  # delay slot
