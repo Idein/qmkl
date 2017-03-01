@@ -45,6 +45,7 @@ static void suite_sgemm_RNN();
 static void suite_sgemm_RNT();
 static void suite_sgemm_RTN();
 static void suite_sgemm_RTT();
+static void suite_sgemm_with_mempool();
 
 int main() {
     CU_initialize_registry();
@@ -53,6 +54,7 @@ int main() {
     suite_sgemm_RNT();
     suite_sgemm_RTN();
     suite_sgemm_RTT();
+    suite_sgemm_with_mempool();
 
     isatty(fileno(stdout)) ? CU_console_run_tests() : CU_basic_run_tests();
     const unsigned int result = CU_get_number_of_failures();
@@ -724,4 +726,132 @@ void test_sgemm_RTT_benchmark() {
     mkl_free(C);
     mkl_free(B);
     mkl_free(A);
+}
+
+static void test_sgemm_with_mempool_ones();
+static void test_sgemm_with_mempool_randoms();
+
+int setup_suite_sgemm_with_mempool() {
+    srand(0xDEADBEEF);
+    return 0;
+}
+
+int teardown_suite_sgemm_with_mempool() {
+    return 0;
+}
+
+void suite_sgemm_with_mempool() {
+    CU_pSuite suite = CU_add_suite("sgemm with mempool", setup_suite_sgemm_with_mempool, teardown_suite_sgemm_with_mempool);
+
+    CU_add_test(suite, "ones", test_sgemm_with_mempool_ones);
+    CU_add_test(suite, "randoms", test_sgemm_with_mempool_randoms);
+}
+
+static void test_sgemm_with_mempool_ones() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    const int size = M * K + K * N + M * N;
+    float* pool = mkl_malloc(size * sizeof(float), 4096);
+    {
+        int i = 0;
+        for (i = 0; i < size; ++i) {
+            pool[i] = 1.0;
+        }
+    }
+    float* A = pool;
+    float* B = A + M * K;
+    float* C = B + K * N;
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1, A, K, B, N, 1, C, N);
+    int diff = 0;
+    {
+        int i, j;
+        for (i = 0; i < M; ++i)
+            for (j = 0; j < N; ++j)
+                diff |= K+1 - (int)C[i*N+j];
+        CU_ASSERT_EQUAL(diff, 0);
+    }
+#ifdef HAVE_PNG
+    if (diff) {
+        {
+            int i, j;
+#pragma omp parallel for private(i, j)
+            for (i = 0; i < M; ++i)
+                for (j = 0; j < N; ++j)
+                    C[i*N+j] = (K+1 == (int)C[i*N+j]) ? 255 : 0;
+        }
+        char file[256] = {0};
+        sprintf(file, "ones_%dx%d_%dx%d.png", M, K, K, N);
+        visualize(file, M, N, C);
+    }
+#endif
+    mkl_free(pool);
+}
+
+void test_sgemm_with_mempool_randoms() {
+    const int M = 96;
+    const int N = 3072;
+    const int K = 363;
+    const int size = M * K + K * N + M * N;
+    float* pool = mkl_malloc(size * sizeof(float), 4096);
+    {
+        int i = 0;
+        for (i = 0; i < size; ++i) {
+            pool[i] = rand_float_in_range(-1.0, 1.0);
+        }
+    }
+    float* A = pool;
+    float* B = A + M * K;
+    float* C = B + K * N;
+    float* A_ref = malloc(M*K*sizeof(float));
+    float* B_ref = malloc(K*N*sizeof(float));
+    float* C_ref = malloc(M*N*sizeof(float));
+    memcpy(A_ref, A, M*K*sizeof(float));
+    memcpy(B_ref, B, K*N*sizeof(float));
+    memcpy(C_ref, C, M*N*sizeof(float));
+    const float alpha = rand_float_in_range(-1.0, 1.0);
+    const float beta = rand_float_in_range(-1.0, 1.0);
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A, K, B, N, beta, C, N);
+    {
+        int i, j, k;
+#pragma omp parallel for private(i, j, k)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                float acc = 0;
+                for (k = 0; k < K; ++k) acc += A_ref[i*K+k] * B_ref[k*N+j];
+                C_ref[i*N+j] = alpha * acc + beta * C_ref[i*N+j];
+            }
+        }
+    }
+    {   // C = alpha * A * B + beta * C
+        float maximum_abs_error = 0;
+        int i, j;
+#pragma omp parallel for private(i, j) reduction(max: maximum_abs_error)
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < N; ++j) {
+                if (maximum_abs_error < fabsf(C_ref[i*N+j] - C[i*N+j]))
+                    maximum_abs_error = fabsf(C_ref[i*N+j] - C[i*N+j]);
+            }
+        }
+        CU_ASSERT_DOUBLE_EQUAL(maximum_abs_error, 0, 0.001);
+    }
+    {   // A and B are not modified
+        int eq = 1;
+        int i, j;
+        for (i = 0; i < M; ++i) {
+            for (j = 0; j < K; ++j) {
+                eq &= A_ref[i*K+j] == A[i*K+j];
+            }
+        }
+        for (i = 0; i < K; ++i) {
+            for (j = 0; j < N; ++j) {
+                eq &= B_ref[i*N+j] == B[i*N+j];
+            }
+        }
+        CU_ASSERT(eq);
+    }
+    free(C_ref);
+    free(B_ref);
+    free(A_ref);
+    mkl_free(pool);
 }
