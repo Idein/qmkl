@@ -61,6 +61,15 @@ target_link_libraries (
     sgemm_spec
     LINK_PUBLIC qmkl ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
 )
+
+add_executable (
+    somatcopy
+    somatcopy.c
+)
+target_link_libraries (
+    somatcopy
+    LINK_PUBLIC qmkl ${CUNIT_LIBRARIES}
+)
 endif(CUNIT_FOUND)
 
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
