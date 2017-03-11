@@ -21,6 +21,7 @@ struct called called = {
     .launch_qpu_code = 0,
     .blas_gemm = 0,
     .blas_copy = 0,
+    .blas_omatcopy = 0,
     .vm_abs = 0
 };
 
@@ -31,6 +32,8 @@ void (*exit_handler)(int why) = exit;
 
 void qmkl_init()
 {
+    int ret_int;
+
     if (++called.main != 1)
         return;
 
@@ -39,6 +42,7 @@ void qmkl_init()
     launch_qpu_code_init();
     blas_gemm_init();
     blas_copy_init();
+    blas_omatcopy_init();
     vm_abs_init();
 
     if (called.mailbox <= 0)
@@ -51,6 +55,8 @@ void qmkl_init()
         error_fatal("called.blas_gemm is 0 or negative: %d\n", called.blas_gemm);
     if (called.blas_copy <= 0)
         error_fatal("called.blas_copy is 0 or negative: %d\n", called.blas_copy);
+    if (called.blas_omatcopy <= 0)
+        error_fatal("called.blas_omatcopy is 0 or negative: %d\n", called.blas_omatcopy);
     if (called.vm_abs <= 0)
         error_fatal("called.vm_abs is 0 or negative: %d\n", called.vm_abs);
 
@@ -61,6 +67,12 @@ void qmkl_init()
     if (code_size != 0) {
         code_common_cpu = mkl_malloc(code_size, 4096);
         code_common_gpu = get_ptr_gpu_from_ptr_cpu(code_common_cpu);
+    }
+
+    ret_int = atexit(qmkl_finalize);
+    if (ret_int != 0) {
+        xerbla_local(ret_int);
+        exit_handler(EXIT_FAILURE);
     }
 }
 
@@ -73,6 +85,7 @@ void qmkl_finalize()
     mkl_free(unif_common_cpu);
 
     vm_abs_finalize();
+    blas_omatcopy_finalize();
     blas_copy_finalize();
     blas_gemm_finalize();
     launch_qpu_code_finalize();
@@ -81,6 +94,8 @@ void qmkl_finalize()
 
     if (called.vm_abs != 0)
         error_fatal("called.vm_abs is not 0: %d\n", called.vm_abs);
+    if (called.blas_omatcopy != 0)
+        error_fatal("called.blas_omatcopy is not 0: %d\n", called.blas_omatcopy);
     if (called.blas_copy != 0)
         error_fatal("called.blas_copy is not 0: %d\n", called.blas_copy);
     if (called.blas_gemm != 0)

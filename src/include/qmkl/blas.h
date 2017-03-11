@@ -25,6 +25,8 @@
     void blas_gemm_finalize();
     void blas_copy_init();
     void blas_copy_finalize();
+    void blas_omatcopy_init();
+    void blas_omatcopy_finalize();
 
     void cblas_sgemm(
         const CBLAS_LAYOUT layout,
@@ -48,5 +50,12 @@
         const MKL_INT incx,
         float *y,
         const MKL_INT incy);
+
+    void mkl_somatcopy(
+        char ordering, char trans,
+        const size_t rows, const size_t cols,
+        const float alpha,
+        const float *A, const size_t lda,
+        float *B, const size_t ldb);
 
 #endif /* _QMKL_BLAS_H_ */

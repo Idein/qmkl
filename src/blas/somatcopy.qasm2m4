@@ -1,0 +1,178 @@
+;#
+;# Copyright (c) 2016 Sugizaki Yukimasa (ysugi@idein.jp)
+;# All rights reserved.
+;#
+;# This software is licensed under a Modified (3-Clause) BSD License.
+;# You should have received a copy of this license along with this
+;# software. If not, contact the copyright holder above.
+;#
+
+
+;# REG_ASSIGN(MACRO_TO_ASSIGN, CNT_BASENAME, REG_PREFIX)
+define(`REG_ASSIGN',`
+    ifelse(`$#', `3', , `
+        errprint(`$0: Invalid the number of the aguments')
+        m4exit(`1')
+    ')
+    ifelse(`$1', `', `
+        errprint(`$0: Empty macro name')
+        m4exit(`1')
+    ')
+    ifelse(`$2', `', `
+        errprint(`$0: Empty suffix')
+        m4exit(`1')
+    ')
+    ifelse(`$3', `', `
+        errprint(`$0: Empty suffix')
+        m4exit(`1')
+    ')
+    ifdef(`$2_CNT', , `define(`$2_CNT', `0')')
+    ifelse(eval($2_CNT >= 32), `1', `
+        errprint(`$0: Register spilled')
+        m4exit(`1')
+    ')
+    define(`$1', `$3'$2_CNT)
+    define(`$2_CNT', incr($2_CNT))
+')
+
+;# R_ASSIGN(MACRO_TO_ASSIGN)
+define(`R_ASSIGN', `REG_ASSIGN($1, R, r)')
+
+;# RA_ASSIGN(MACRO_TO_ASSIGN)
+define(`RA_ASSIGN', `REG_ASSIGN($1, RA, ra)')
+
+;# RB_ASSIGN(MACRO_TO_ASSIGN)
+define(`RB_ASSIGN', `REG_ASSIGN($1, RB, rb)')
+
+
+RA_ASSIGN(X_COUNT_RA)
+RA_ASSIGN(X_COUNT_ORIG_RA)
+RA_ASSIGN(Y_COUNT_RA)
+RB_ASSIGN(MEM_SRC_RB)
+RA_ASSIGN(MEM_DST_RA)
+RB_ASSIGN(MEM_SRC_BACK_RB)
+RA_ASSIGN(MEM_DST_BACK_RA)
+RA_ASSIGN(MEM_SRC_INC_X_RA)
+RA_ASSIGN(MEM_SRC_INC_Y_RA)
+RB_ASSIGN(MEM_DST_INC_X_RB)
+RB_ASSIGN(MEM_DST_INC_Y_RB)
+RA_ASSIGN(VPM_DMA_LOAD_SETUP_0_RA)
+RA_ASSIGN(VPM_DMA_LOAD_SETUP_16_RA)
+RA_ASSIGN(VPM_DMA_STORE_SETUP_0_RA)
+RA_ASSIGN(VPM_DMA_STORE_SETUP_16_RA)
+
+changequote(`[', `]')
+
+alu cond_add=al op_add=or waddr_add=Y_COUNT_RA                raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=X_COUNT_ORIG_RA           raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_SRC_RB ws=1           raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_DST_RA                raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_SRC_INC_X_RA          raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_SRC_INC_Y_RA          raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_DST_INC_X_RB ws=1     raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=MEM_DST_INC_Y_RB ws=1     raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=VPM_DMA_LOAD_SETUP_0_RA   raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=VPM_DMA_LOAD_SETUP_16_RA  raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=VPM_DMA_STORE_SETUP_0_RA  raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=VPM_DMA_STORE_SETUP_16_RA raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup           raddr_a=uniform_read add_a=ra add_b=ra
+alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1      raddr_a=uniform_read add_a=ra add_b=ra
+
+; Load: y = 0
+alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup raddr_a=VPM_DMA_LOAD_SETUP_0_RA   add_a=ra add_b=ra
+
+:loop-y
+
+    ; MEM_SRC_BACK_RB = MEM_SRC_RB
+    alu cond_add=al op_add=or waddr_add=MEM_SRC_BACK_RB ws=1 raddr_b=MEM_SRC_RB add_a=rb add_b=rb
+    ; MEM_DST_BACK_RA = MEM_DST_RA
+    alu cond_add=al op_add=or waddr_add=MEM_DST_BACK_RA      raddr_a=MEM_DST_RA add_a=ra add_b=ra
+
+    ; vpm_ld_addr = MEM_SRC_RB
+    ;  and MEM_SRC_RB += MEM_SRC_INC_X_RA
+    alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=MEM_SRC_INC_X_RA raddr_b=MEM_SRC_RB add_a=rb add_b=ra mul_a=rb mul_b=rb
+
+    ; Load: y = 16
+    alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup      raddr_a=VPM_DMA_LOAD_SETUP_16_RA  add_a=ra add_b=ra
+    ; Store: y = 0
+    alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_0_RA  add_a=ra add_b=ra
+
+    ; Wait for load and store
+    alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+
+    alu cond_add=al op_add=or waddr_add=X_COUNT_RA raddr_a=X_COUNT_ORIG_RA add_a=ra add_b=ra
+
+    :loop-x
+
+        ; vpm_st_addr = MEM_DST_RA
+        ;  and MEM_DST_RA += MEM_DST_INC_X_RB
+        alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=MEM_DST_INC_X_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+
+        ; vpm_ld_addr = MEM_SRC_RB
+        ;  and MEM_SRC_RB += MEM_SRC_INC_X_RA
+        alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=MEM_SRC_INC_X_RA raddr_b=MEM_SRC_RB add_a=rb add_b=ra mul_a=rb mul_b=rb
+
+        ; Load: y = 0
+        alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup      raddr_a=VPM_DMA_LOAD_SETUP_0_RA   add_a=ra add_b=ra
+        ; Store: y = 16
+        alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_16_RA add_a=ra add_b=ra
+
+        ; Set flags on X_COUNT_RA -= 1
+        alu cond_add=al op_add=sub sf=1 waddr_add=X_COUNT_RA raddr_a=X_COUNT_RA sig=simm simm=1 add_a=ra add_b=rb
+
+        ; Wait for load and store
+        alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+
+
+        ; vpm_st_addr = MEM_DST_RA
+        ;  and MEM_DST_RA += MEM_DST_INC_X_RB
+        alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=MEM_DST_INC_X_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+
+        ; vpm_ld_addr = MEM_SRC_RB
+        ;  and MEM_SRC_RB += MEM_SRC_INC_X_RA
+        alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_SRC_RB waddr_mul=vpm_ld_addr ws=1 raddr_a=MEM_SRC_INC_X_RA raddr_b=MEM_SRC_RB add_a=rb add_b=ra mul_a=rb mul_b=rb
+
+        bra cond_br=allzc rel=1 imm=:loop-x
+        ; 3 delay slots {
+            ; Load: y = 16
+            alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup      raddr_a=VPM_DMA_LOAD_SETUP_16_RA  add_a=ra add_b=ra
+            ; Store: y = 0
+            alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_0_RA  add_a=ra add_b=ra
+
+            ; Wait for load and store
+            alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+        ; }
+
+    ; vpm_st_addr = MEM_DST_RA
+    ;  and MEM_DST_RA += MEM_DST_INC_X_RB
+    alu cond_add=al cond_mul=al op_add=add op_mul=v8min waddr_add=MEM_DST_RA waddr_mul=vpm_st_addr raddr_a=MEM_DST_RA raddr_b=MEM_DST_INC_X_RB add_a=ra add_b=rb mul_a=ra mul_b=ra
+
+    ; MEM_SRC_RB = MEM_SRC_BACK_RB + MEM_SRC_INC_Y_RA
+    alu cond_add=al op_add=add waddr_add=MEM_SRC_RB ws=1 raddr_a=MEM_SRC_INC_Y_RA raddr_b=MEM_SRC_BACK_RB add_a=rb add_b=ra
+    ; MEM_DST_RA = MEM_DST_BACK_RA + MEM_DST_INC_Y_RB
+    alu cond_add=al op_add=add waddr_add=MEM_DST_RA raddr_a=MEM_DST_BACK_RA raddr_b=MEM_DST_INC_Y_RB add_a=ra add_b=rb
+
+    ; Set flags on Y_COUNT_RA -= 1
+    alu cond_add=al op_add=sub sf=1 waddr_add=Y_COUNT_RA raddr_a=Y_COUNT_RA sig=simm simm=1 add_a=ra add_b=rb
+
+    bra cond_br=allzc rel=1 imm=:loop-y
+    ; 3 delay slots {
+        ; Load: y = 0
+        alu cond_add=al op_add=or waddr_add=vpmvcd_rd_setup      raddr_a=VPM_DMA_LOAD_SETUP_0_RA   add_a=ra add_b=ra
+        ; Store: y = 16
+        alu cond_add=al op_add=or waddr_add=vpmvcd_wr_setup ws=1 raddr_a=VPM_DMA_STORE_SETUP_16_RA add_a=ra add_b=ra
+
+        ; Wait for load and store
+        alu cond_add=al op_add=or raddr_a=vpm_ld_wait raddr_b=vpm_st_wait add_a=ra add_b=rb
+    ; }
+
+
+li cond_add=al waddr_add=host_int imm=1
+alu sig=pe
+alu
+alu
+
+; Stats:
+;  [R_CNT]  = R_CNT
+;  [RA_CNT] = RA_CNT
+;  [RB_CNT] = RB_CNT
