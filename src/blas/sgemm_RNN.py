@@ -587,9 +587,6 @@ def sgemm_gpu_code(asm):
     isub(r3, r3, 1, cond='zs')
     L.skip_store_block_3
 
-    # for i in range(32*1024):
-    #     nop()
-
     wait_dma_store() # Wait for store of block 3
     mutex_release()
 
@@ -630,6 +627,9 @@ def sgemm_gpu_code(asm):
     interrupt()
 
     L.skip_fin
+
+    # for i in range(32*1024):
+    #     nop()
 
     exit(interrupt=False)
 
