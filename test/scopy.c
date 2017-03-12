@@ -13,6 +13,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <omp.h>
+#include <assert.h>
+
+#define USE_MALLOC_FOR_CPU
 
 #ifdef _HAVE_NEON_
 #include <arm_neon.h>
@@ -96,6 +99,9 @@ int main()
 {
     const int n = 4096 * 1024;
     float *x, *y, *y_ref;
+#ifdef USE_MALLOC_FOR_CPU
+    float *x_ref;
+#endif /* USE_MALLOC_FOR_CPU */
 #ifdef _HAVE_NEON_
     float *y_neon;
 #endif /* _HAVE_NEON_ */
@@ -103,13 +109,23 @@ int main()
 
     x     = mkl_malloc(n * sizeof(*x),     4096);
     y     = mkl_malloc(n * sizeof(*y),     4096);
+#ifdef USE_MALLOC_FOR_CPU
+    x_ref = malloc(n * sizeof(*x_ref));
+    assert(x_ref != NULL);
+    y_ref = malloc(n * sizeof(*y_ref));
+    assert(y_ref != NULL);
+#else /* USE_MALLOC_FOR_CPU */
     y_ref = mkl_malloc(n * sizeof(*y_ref), 4096);
+#endif /* USE_MALLOC_FOR_CPU */
 #ifdef _HAVE_NEON_
     y_neon = mkl_malloc(n * sizeof(*y_neon), 4096);
 #endif /* _HAVE_NEON_ */
 
     mf_srandom();
     mf_init_random(x, 1, n);
+#ifdef USE_MALLOC_FOR_CPU
+    memcpy(x_ref, x, n * sizeof(*x));
+#endif /* USE_MALLOC_FOR_CPU */
     /* To detect insufficient copies... */
     mf_init_random(y, 1, n);
     mf_init_random(y_ref, 1, n);
@@ -128,7 +144,11 @@ int main()
 
     printf("CPU (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
+#ifdef USE_MALLOC_FOR_CPU
+    mf_scopy(n, x_ref, y_ref);
+#else /* USE_MALLOC_FOR_CPU */
     mf_scopy(n, x, y_ref);
+#endif /* USE_MALLOC_FOR_CPU */
     gettimeofday(&end, NULL);
     printf("%g [s], %g [flop/s]\n", (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6, n / ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6));
 
@@ -145,7 +165,11 @@ int main()
 #ifdef _HAVE_NEON_
     printf("CPU with NEON (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
+#ifdef USE_MALLOC_FOR_CPU
+    mf_scopy_neon(n, x_ref, y_neon);
+#else /* USE_MALLOC_FOR_CPU */
     mf_scopy_neon(n, x, y_neon);
+#endif /* USE_MALLOC_FOR_CPU */
     gettimeofday(&end, NULL);
     printf("%g [s], %g [flop/s]\n", (end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6, n / ((end.tv_sec - start.tv_sec) + (end.tv_usec - start.tv_usec) * 1e-6));
 
@@ -161,7 +185,12 @@ int main()
 
     mkl_free(y_neon);
 #endif /* _HAVE_NEON_ */
+#ifdef USE_MALLOC_FOR_CPU
+    free(x_ref);
+    free(y_ref);
+#else /* USE_MALLOC_FOR_CPU */
     mkl_free(y_ref);
+#endif /* USE_MALLOC_FOR_CPU */
     mkl_free(y);
     mkl_free(x);
     return 0;
