@@ -9,8 +9,7 @@ include_directories (
 add_subdirectory (blas)
 add_subdirectory (vm)
 
-add_library (
-    qmkl SHARED
+list (APPEND qmkl_SOURCES
     main.c
     mailbox.c
     memory.c
@@ -20,9 +19,29 @@ add_library (
     $<TARGET_OBJECTS:vm>
 )
 
+add_library (
+    qmkl SHARED
+    ${qmkl_SOURCES}
+)
+
+add_library(
+    qmkl-static STATIC
+    ${qmkl_SOURCES}
+)
+
+set_target_properties(
+    qmkl-static PROPERTIES
+    OUTPUT_NAME "qmkl"
+)
+
 install (
     TARGETS qmkl LIBRARY
     DESTINATION lib
+)
+install (
+    TARGETS qmkl-static LIBRARY
+    DESTINATION lib
+    ARCHIVE DESTINATION lib
 )
 install (
     FILES
