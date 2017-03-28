@@ -16,8 +16,8 @@ function (qasm2m4_dep_on_c c_filename)
 
         add_custom_command (
             OUTPUT ${basename}.qbin
-            COMMAND ${QASM2} <${basename}.qasm2 >${basename}.qbin
-            DEPENDS ${basename}.qasm2
+            COMMAND ${QASM2} <${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qasm2 >${basename}.qbin
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qasm2
         )
 
         add_custom_command (
