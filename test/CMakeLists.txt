@@ -59,7 +59,7 @@ add_executable (
 )
 target_link_libraries (
     sgemm_spec
-    LINK_PUBLIC ${CMAKE_SOURCE_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
 )
 add_executable (
     memory_bench
@@ -67,7 +67,7 @@ add_executable (
 )
 target_link_libraries (
     memory_bench
-    LINK_PUBLIC ${CMAKE_SOURCE_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES}
 )
 endif(CUNIT_FOUND)
 
