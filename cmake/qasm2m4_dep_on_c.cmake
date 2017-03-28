@@ -9,21 +9,21 @@ function (qasm2m4_dep_on_c c_filename)
         )
 
         add_custom_command (
-            OUTPUT ${basename}.qhex
-            COMMAND ${QBIN2HEX} <${basename}.qbin >${basename}.qhex
-            DEPENDS ${basename}.qbin
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex
+            COMMAND ${QBIN2HEX} <${CMAKE_CURRENT_BINARY_DIR}/${basename}.qbin >${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex
+            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qbin
         )
 
         add_custom_command (
-            OUTPUT ${basename}.qbin
-            COMMAND ${QASM2} <${basename}.qasm2 >${basename}.qbin
-            DEPENDS ${basename}.qasm2
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qbin
+            COMMAND ${QASM2} <${CMAKE_CURRENT_BINARY_DIR}/${basename}.qasm2 >${CMAKE_CURRENT_BINARY_DIR}/${basename}.qbin
+            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qasm2
         )
 
         add_custom_command (
-            OUTPUT ${basename}.qasm2
-            COMMAND ${M4} <${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qasm2m4 >${basename}.qasm2
-            DEPENDS ${basename}.qasm2m4
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qasm2
+            COMMAND ${M4} <${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qasm2m4 >${CMAKE_CURRENT_BINARY_DIR}/${basename}.qasm2
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qasm2m4
         )
 
     endforeach (basename)
