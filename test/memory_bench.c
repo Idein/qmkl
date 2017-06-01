@@ -24,7 +24,7 @@ static void invalidate_cpu_l2c()
     const int NLOOPS = 10;
     size_t j;
     const size_t SIZE = 16 * 1024 * 1024;
-    int *p = host_malloc(SIZE);
+    int * volatile p = host_malloc(SIZE);
     const size_t LEN = SIZE / sizeof(*p);
     for (i = 0; i < NLOOPS; i ++) {
         p[LEN - 1] = p[0];
