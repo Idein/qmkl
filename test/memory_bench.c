@@ -17,6 +17,23 @@ static void  host_free(void* p) { if (p) free(p); }
 static void* gpu_malloc(size_t size) { return mkl_malloc(size, 4096); }
 static void  gpu_free(void* p) { if (p) mkl_free(p); }
 
+/* invalidate_cpu_l2c - may invalidate CPU-unified L2C */
+static void invalidate_cpu_l2c()
+{
+    int i;
+    const int NLOOPS = 10;
+    size_t j;
+    const size_t SIZE = 16 * 1024 * 1024;
+    int * volatile p = host_malloc(SIZE);
+    const size_t LEN = SIZE / sizeof(*p);
+    for (i = 0; i < NLOOPS; i ++) {
+        p[LEN - 1] = p[0];
+        for (j = 0; j < LEN - 1; j ++)
+            p[j] = p[j + 1];
+    }
+    host_free(p);
+}
+
 static float rand_float_in_range(float from, float to) {
     return ((float)rand() / RAND_MAX) * (to - from) + from;
 }
@@ -49,6 +66,7 @@ static int teardown_suite() {
 #define TEST_MEMCPY(FROM, TO)                                           \
     static void test_memcpy_##FROM##_to_##TO() {                        \
         float* TO##_dst_memory = (float*)TO##_malloc(N*sizeof(float));  \
+        invalidate_cpu_l2c();                                           \
         double start = get_time();                                      \
         memcpy(TO##_dst_memory, FROM##_src_memory, N*sizeof(float));    \
         double end = get_time();                                        \
@@ -86,6 +104,7 @@ static void suite_memcpy() {
 #define TEST_MEMSET(TO)                                                 \
     static void test_memset_to_##TO() {                                 \
         float* TO##_dst_memory = (float*)TO##_malloc(N*sizeof(float));  \
+        invalidate_cpu_l2c();                                           \
         double start = get_time();                                      \
         memset(TO##_dst_memory, 0, N*sizeof(float));                    \
         double end = get_time();                                        \
@@ -118,6 +137,7 @@ static void suite_memset() {
 
 #define TEST_SUMALL(FROM)                                               \
     static void test_sumall_##FROM() {                                  \
+        invalidate_cpu_l2c();                                           \
         double start = get_time();                                      \
         float actual = 0;                                               \
         size_t i = 0;                                                   \
