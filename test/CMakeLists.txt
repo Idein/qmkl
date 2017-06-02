@@ -2,6 +2,7 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
 
 include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
