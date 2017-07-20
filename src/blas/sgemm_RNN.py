@@ -233,7 +233,7 @@ def sgemm_gpu_code(asm):
         fadd(rb[i+16],  rb[i+16],  r0).fmul(r0, r4, r5)
         rotate(broadcast, r3, -(2*i+2))
         fadd(ra[i+16],  ra[i+16],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -15)
+    rotate(broadcast, r3, -15)
     fadd(rb23,  rb23,  r0)            .fmul(r0, r4, r5)
     fadd(ra23,  ra23,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 3
 
