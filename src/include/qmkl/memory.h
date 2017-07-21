@@ -20,6 +20,7 @@
     void* mkl_malloc(size_t alloc_size, int alignment);
     void mkl_free(void *a_ptr);
     MKL_UINT get_ptr_gpu_from_ptr_cpu(const void *ptr_cpu);
+    MKL_UINT map_virt_on_phys(const void *ptr_cpu);
     void unif_set_uint(MKL_UINT *p, const MKL_UINT u);
     void unif_set_float(MKL_UINT *p, const float f);
     void unif_add_uint(const MKL_UINT u, MKL_UINT **p);

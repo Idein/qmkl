@@ -10,6 +10,10 @@
 #ifndef _QMKL_H_
 #define _QMKL_H_
 
+#ifndef _ISOC11_SOURCE
+#define _ISOC11_SOURCE
+#endif /* _ISOC11_SOURCE */
+
     void qmkl_init() __attribute__((constructor));
     void qmkl_finalize() __attribute__((destructor));
 
