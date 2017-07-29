@@ -2,6 +2,7 @@ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
 
 include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/include
+    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -57,9 +58,19 @@ add_executable (
     sgemm_spec
     sgemm_spec.c
 )
+add_dependencies(sgemm_spec qmkl-static)
 target_link_libraries (
     sgemm_spec
-    LINK_PUBLIC qmkl ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
+)
+add_executable (
+    memory_bench
+    memory_bench.c
+)
+add_dependencies(memory_bench qmkl-static)
+target_link_libraries (
+    memory_bench
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES}
 )
 endif(CUNIT_FOUND)
 

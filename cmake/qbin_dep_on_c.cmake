@@ -12,9 +12,9 @@ macro (qbin_dep_on_c c_filename)
         )
 
         add_custom_command (
-            OUTPUT ${basename}.qhex
-            COMMAND ${QBIN2HEX} <${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qbin >${basename}.qhex
-            DEPENDS ${basename}.qbin
+            OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex
+            COMMAND ${QBIN2HEX} <${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qbin >${CMAKE_CURRENT_BINARY_DIR}/${basename}.qhex
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${basename}.qbin
         )
 
     endforeach (basename)

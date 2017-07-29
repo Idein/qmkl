@@ -1,3 +1,7 @@
+include_directories (
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 add_library (
     blas
     OBJECT
@@ -5,5 +9,5 @@ add_library (
         copy.c
 )
 
-qbin_dep_on_c (gemm.c sgemm_16x64_1thread sgemm_16x64 sgemm_16x16)
+qbin_dep_on_c (gemm.c sgemm_RNN sgemm_RNT sgemm_RTN sgemm_RTT)
 qasm2m4_dep_on_c (copy.c scopy)

@@ -31,7 +31,7 @@ struct mem_allocated_list {
     MKL_UINT handle;
 #endif /* ALLOC_ON_GPU */
     MKL_UINT ptr_gpu;
-    MKL_UINT *ptr_cpu;
+    void *ptr_cpu;
     struct mem_allocated_list *next;
 } *mem_allocated_list_head = NULL;
 
@@ -130,7 +130,7 @@ void* mkl_malloc(size_t alloc_size, int alignment)
 {
     struct mem_allocated_list *cur = NULL;
     MKL_UINT ptr_gpu;
-    MKL_UINT *ptr_cpu;
+    void *ptr_cpu;
 
 #ifdef ALLOC_ON_GPU
 
@@ -248,8 +248,8 @@ MKL_UINT get_ptr_gpu_from_ptr_cpu(const void *ptr_cpu)
     struct mem_allocated_list *cur;
 
     for (cur = mem_allocated_list_head; cur != NULL; cur = cur->next)
-        if (cur->ptr_cpu == ptr_cpu)
-            return cur->ptr_gpu;
+        if (cur->ptr_cpu <= ptr_cpu && ptr_cpu < cur->ptr_cpu + cur->alloc_size)
+            return cur->ptr_gpu + (ptr_cpu - cur->ptr_cpu);
 
     error_fatal("No such ptr_cpu: %p\n", ptr_cpu);
 }
