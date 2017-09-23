@@ -202,52 +202,33 @@ def sgemm_gpu_code(asm):
 
     L.k_loop
 
-    mov(broadcast, r3, sig='load tmu1') # load TMU sig for block 0
-
-    # block 0
-    fmul(r0, r4, r5)
-    for i in range(0, 7):
+    mov(broadcast, r3, sig='load tmu1')                              # block 0 & 1
+    mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
+    fadd(rb[0+0],  rb[0+0],  r0).fmul(r0, r4, r5)
+    for i in range(7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i],  rb[i],  r0).fmul(r0, r4, r5)
+        fadd(rb[i+0+8],  rb[i+0+8],  r0).fmul(r0, r1, r5)
+        fadd(ra[i+0+0],  ra[i+0+0],  r0).fmul(r0, r4, r5)
         rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i],  ra[i],  r0).fmul(r0, r4, r5)
+        fadd(ra[i+0+8],  ra[i+0+8],  r0).fmul(r0, r1, r5)
+        fadd(rb[i+1+0],  rb[i+1+0],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
-    fadd(rb7,  rb7,  r0).fmul(r0, r4, r5)
-    fadd(ra7,  ra7,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 1
-
-    # block 1
-    nop()                           .fmul(r0, r4, r5)
-    for i in range(0, 7):
+    fadd(rb[7+8],  rb[7+8],  r0).fmul(r0, r1, r5)
+    fadd(ra[7+0],  ra[7+0],  r0).fmul(r0, r4, r5)
+    fadd(ra[7+8],  ra[7+8],  r0).mov(broadcast, r3, sig='load tmu1') # block 2 & 3
+    mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
+    fadd(rb[0+16],  rb[0+16],  r0).fmul(r0, r4, r5)
+    for i in range(7):
         rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i+8],  rb[i+8],  r0).fmul(r0, r4, r5)
+        fadd(rb[i+0+24],  rb[i+0+24],  r0).fmul(r0, r1, r5)
+        fadd(ra[i+0+16],  ra[i+0+16],  r0).fmul(r0, r4, r5)
         rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i+8],  ra[i+8],  r0).fmul(r0, r4, r5)
+        fadd(ra[i+0+24],  ra[i+0+24],  r0).fmul(r0, r1, r5)
+        fadd(rb[i+1+16],  rb[i+1+16],  r0).fmul(r0, r4, r5)
     rotate(broadcast, r3, -15)
-    fadd(rb15,  rb15,  r0)          .fmul(r0, r4, r5)
-    fadd(ra15,  ra15,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 2
-
-    # block 2
-    nop()                             .fmul(r0, r4, r5)
-    for i in range(0, 7):
-        rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i+16],  rb[i+16],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i+16],  ra[i+16],  r0).fmul(r0, r4, r5)
-    rotate(broadcast, r3, -15)
-    fadd(rb23,  rb23,  r0)            .fmul(r0, r4, r5)
-    fadd(ra23,  ra23,  r0, sig='load tmu1').mov(broadcast, r3) # load TMU sig for block 3
-
-    # block 3
-    nop()                             .fmul(r0, r4, r5)
-    for i in range(0, 7):
-        rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i+24],  rb[i+24],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i+24],  ra[i+24],  r0).fmul(r0, r4, r5)
-    rotate(broadcast, r3, -15)
-    fadd(rb31,  rb31,  r0)            .fmul(r0, r4, r5)
-    fadd(ra31,  ra31,  r0)
-
+    fadd(rb[7+24],  rb[7+24],  r0).fmul(r0, r1, r5)
+    fadd(ra[7+16],  ra[7+16],  r0).fmul(r0, r4, r5)
+    fadd(ra[7+24],  ra[7+24],  r0)
 
     # load TMU block 0,1,2,3
     shl(r0, element_number, 2)
