@@ -164,111 +164,86 @@ def sgemm_gpu_code(asm):
     ldi(null, mask(K_IDX), set_flags=True)
     mov(r2, r5, cond='zs')
 
-    # load TMU block 0,1,2,3
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -B_CUR_IDX)
-    iadd(r0, r0, r5)     # r0 = B_cur + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
-    ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
-    ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
-    ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
-
     shl(r0, element_number, 2)
     rotate(broadcast, r2, -A_CUR_IDX)
-    iadd(r1, r0, r5)
-    rotate(broadcast, r2, -Q_IDX)
-    mov(r0, r5)
-    rotate(broadcast, r2, -K_IDX)
-    isub(r0, r0, r5)
-    rotate(broadcast, r2, -A_STRIDE_IDX)
+    iadd(r1, r0, r5).rotate(broadcast, r2, -Q_IDX)
+    mov(r0, r5)     .rotate(broadcast, r2, -K_IDX)
+    isub(r0, r0, r5).rotate(broadcast, r2, -A_STRIDE_IDX)
     imul24(r0, r0, r5)
     iadd(r0, r0, r1)
-    mov(tmu0_s, r0) # r1[e] = A_cur + 4*e + (q-k)*A_stride
-
-    rotate(broadcast, r2, -B_STRIDE_IDX)
-    ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs',
-
-         sig='load tmu0')
-    mov(r3, r4)
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    iadd(r0, r0, r5)
-    mov(tmu0_s, r0) # r1[e] = A_cur + 4*e + (q-k+1)*A_stride
-
-    L.k_loop
-
-    mov(broadcast, r3, sig='load tmu1')                              # block 0 & 1
-    mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
-    fadd(rb[0+0],  rb[0+0],  r0).fmul(r0, r4, r5)
-    for i in range(7):
-        rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i+0+8],  rb[i+0+8],  r0).fmul(r0, r1, r5)
-        fadd(ra[i+0+0],  ra[i+0+0],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i+0+8],  ra[i+0+8],  r0).fmul(r0, r1, r5)
-        fadd(rb[i+1+0],  rb[i+1+0],  r0).fmul(r0, r4, r5)
-    rotate(broadcast, r3, -15)
-    fadd(rb[7+8],  rb[7+8],  r0).fmul(r0, r1, r5)
-    fadd(ra[7+0],  ra[7+0],  r0).fmul(r0, r4, r5)
-    fadd(ra[7+8],  ra[7+8],  r0).mov(broadcast, r3, sig='load tmu1') # block 2 & 3
-    mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
-    fadd(rb[0+16],  rb[0+16],  r0).fmul(r0, r4, r5)
-    for i in range(7):
-        rotate(broadcast, r3, -(2*i+1))
-        fadd(rb[i+0+24],  rb[i+0+24],  r0).fmul(r0, r1, r5)
-        fadd(ra[i+0+16],  ra[i+0+16],  r0).fmul(r0, r4, r5)
-        rotate(broadcast, r3, -(2*i+2))
-        fadd(ra[i+0+24],  ra[i+0+24],  r0).fmul(r0, r1, r5)
-        fadd(rb[i+1+16],  rb[i+1+16],  r0).fmul(r0, r4, r5)
-    rotate(broadcast, r3, -15)
-    fadd(rb[7+24],  rb[7+24],  r0).fmul(r0, r1, r5)
-    fadd(ra[7+16],  ra[7+16],  r0).fmul(r0, r4, r5)
-    fadd(ra[7+24],  ra[7+24],  r0)
+    mov(tmu0_s, r0).mov(r3, r0) # r1[e] = A_cur + 4*e + (q-k)*A_stride
 
     # load TMU block 0,1,2,3
     shl(r0, element_number, 2)
     rotate(broadcast, r2, -B_CUR_IDX)
     iadd(r0, r0, r5)     # r0 = B_cur + 4*e
-    mov(tmu1_s, r0)      # tmu1[e] = B_cur + 4*e + 16*4*0
     ldi(r1, 16*4*1)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*1
-    ldi(r1, 16*4*2)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*2
-    ldi(r1, 16*4*3)
-    iadd(tmu1_s, r0, r1) # tmu1[e] = B_cur + 4*e + 16*4*3
-
-    nop(sig='load tmu0')
-    mov(r3, r4)
-    shl(r0, element_number, 2)
-    rotate(broadcast, r2, -A_CUR_IDX)
-    iadd(r1, r0, r5)
-    rotate(broadcast, r2, -Q_IDX)
-    mov(r0, r5)
-    rotate(broadcast, r2, -K_IDX)
-    isub(r0, r0, r5)
-    iadd(r0, r0, 2)
-    rotate(broadcast, r2, -A_STRIDE_IDX)
-    imul24(r0, r0, r5)
-    iadd(tmu0_s, r0, r1) # tmu0[e] = A_cur + 4*e + (q-k+2)*A_stride
-
-    ldi(null, mask(K_IDX), set_flags=True)
-    isub(r2, r2, 1, cond='zs')
-
-    jzc(L.k_loop)
-    rotate(broadcast, r2, -B_STRIDE_IDX)
+    iadd(r0, r0, r1).mov(tmu0_s, r0)                     # tmu0[e] = B_cur + 4*e + 16*4*0
+    iadd(r0, r0, r1).mov(tmu1_s, r0)                     # tmu1[e] = B_cur + 4*e + 16*4*1
+    iadd(r0, r0, r1).mov(tmu0_s, r0)                     # tmu0[e] = B_cur + 4*e + 16*4*2
+    mov(tmu1_s, r0).rotate(broadcast, r2, -B_STRIDE_IDX) # tmu1[e] = B_cur + 4*e + 16*4*3
     ldi(null, mask(B_CUR_IDX), set_flags=True)
-    iadd(r2, r2, r5, cond='zs')
+    iadd(r2, r2, r5, cond='zs', sig='load tmu0')
 
+    mov(r3, r4).mov(r0, r3)
+    rotate(broadcast, r2, -A_STRIDE_IDX)
+    iadd(tmu0_s, r0, r5) # r1[e] = A_cur + 4*e + (q-k+1)*A_stride
+
+    L.k_loop
+    if True:
+        mov(broadcast, r3, sig='load tmu0')                              # block 0 & 1
+        mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
+        fadd(rb[0+0],  rb[0+0],  r0).fmul(r0, r4, r5)
+        for i in range(7):
+            rotate(broadcast, r3, -(2*i+1))
+            fadd(rb[i+0+8],  rb[i+0+8],  r0).fmul(r0, r1, r5)
+            fadd(ra[i+0+0],  ra[i+0+0],  r0).fmul(r0, r4, r5)
+            rotate(broadcast, r3, -(2*i+2))
+            fadd(ra[i+0+8],  ra[i+0+8],  r0).fmul(r0, r1, r5)
+            fadd(rb[i+1+0],  rb[i+1+0],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -15)
+        fadd(rb[7+8],  rb[7+8],  r0).fmul(r0, r1, r5)
+        fadd(ra[7+0],  ra[7+0],  r0).fmul(r0, r4, r5)
+        fadd(ra[7+8],  ra[7+8],  r0).mov(broadcast, r3, sig='load tmu0') # block 2 & 3
+        mov(r1, r4, sig='load tmu1').fmul(r0, r4, r5)
+        fadd(rb[0+16],  rb[0+16],  r0).fmul(r0, r4, r5)
+        for i in range(7):
+            rotate(broadcast, r3, -(2*i+1))
+            fadd(rb[i+0+24],  rb[i+0+24],  r0).fmul(r0, r1, r5)
+            fadd(ra[i+0+16],  ra[i+0+16],  r0).fmul(r0, r4, r5)
+            rotate(broadcast, r3, -(2*i+2))
+            fadd(ra[i+0+24],  ra[i+0+24],  r0).fmul(r0, r1, r5)
+            fadd(rb[i+1+16],  rb[i+1+16],  r0).fmul(r0, r4, r5)
+        rotate(broadcast, r3, -15)
+        fadd(rb[7+24],  rb[7+24],  r0).fmul(r0, r1, r5)
+        fadd(ra[7+16],  ra[7+16],  r0).fmul(r0, r4, r5)
+        fadd(ra[7+24],  ra[7+24],  r0).rotate(broadcast, r2, -B_CUR_IDX)
+        # load TMU block 0,1,2,3
+        shl(r0, element_number, 2)
+        iadd(r3, r0, r5, sig='load tmu0') # r0 = B_cur + 4*e
+        ldi(r1, 16*4*1)
+        iadd(r3, r3, r1).mov(tmu0_s, r3) # tmu0[e] = B_cur + 4*e + 16*4*0
+        iadd(r3, r3, r1).mov(tmu1_s, r3) # tmu1[e] = B_cur + 4*e + 16*4*1
+        iadd(r3, r3, r1).mov(tmu0_s, r3) # tmu0[e] = B_cur + 4*e + 16*4*2
+        mov(r3, r4)     .mov(tmu1_s, r3) # tmu1[e] = B_cur + 4*e + 16*4*3
+        rotate(broadcast, r2, -A_CUR_IDX)
+        iadd(r1, r0, r5).rotate(broadcast, r2, -Q_IDX)
+        mov(r0, r5)     .rotate(broadcast, r2, -K_IDX)
+        isub(r0, r0, r5).rotate(broadcast, r2, -A_STRIDE_IDX)
+        iadd(r0, r0, 2)
+        ldi(null, mask(K_IDX), set_flags=True)
+        isub(r2, r2, 1, cond='zs').imul24(r0, r0, r5)
+    jzc(L.k_loop)
+    iadd(tmu0_s, r0, r1).rotate(broadcast, r2, -B_STRIDE_IDX) # delay slot # tmu0[e] = A_cur + 4*e + (q-k+2)*A_stride
+    ldi(null, mask(B_CUR_IDX), set_flags=True)                # delay slot
+    iadd(r2, r2, r5, cond='zs')                               # delay slot
 
     #==== end of k-loop ====
 
     nop(sig='load tmu0')
+    nop(sig='load tmu0')
     nop(sig='load tmu1')
-    nop(sig='load tmu1')
-    nop(sig='load tmu1')
+    nop(sig='load tmu0')
     nop(sig='load tmu1')
 
     # nrows = min(P-((P+15)/16-i)*16, 16)
