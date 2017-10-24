@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Sugizaki Yukimasa at Idein Inc. (ysugi@idein.jp)
+ * Copyright (c) 2017 Idein Inc. ( http://idein.jp/ )
  * All rights reserved.
  *
  * This software is licensed under a Modified (3-Clause) BSD License.
