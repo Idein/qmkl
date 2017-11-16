@@ -28,7 +28,7 @@ def sgemm_gpu_code(asm):
     P_IDX = 4;           NCOLS_IDXS[1] = 4
     Q_IDX = 5;           NCOLS_IDXS[2] = 5
     R_IDX = 6;           NCOLS_IDXS[3] = 6
-    A_CUR_IDX = 7;       LOAD_SETUP_IDXS[0] = 7
+    A_CUR_IDX = 7;       LOAD_SETUP_IDXS[0] = 7;  ROW_IDX = 7
     C_CUR_IDX = 8;       LOAD_SETUP_IDXS[1] = 8
     A_BASE_IDX = 9;      LOAD_SETUP_IDXS[2] = 9
     B_BASE_IDX = 10;     LOAD_SETUP_IDXS[3] = 10
@@ -334,205 +334,551 @@ def sgemm_gpu_code(asm):
 
     nop(sig='load tmu0')
 
-    # nrows = min(P-((P+15)/16-i)*16, 16)
-    rotate(broadcast, r2, -P_IDX)
-    iadd(r1, r5, 15)
-    shr(r1, r1, 4)
-    rotate(broadcast, r2, -I_IDX)
-    isub(r1, r1, r5)
-    shl(r1, r1, 4)
-    rotate(broadcast, r2, -P_IDX)
-    isub(r1, r5, r1)
-    rotate(broadcast, r1, 0)
-    ldi(r1, 16)
-    imin(r1, r1, r5)
-    ldi(null, mask(NROWS_IDX), set_flags=True)
-    mov(r3, r1, cond='zs')
+    rotate(broadcast, r2, -C_STRIDE_IDX)
+    ldi(r0, 8192)
+    isub(r0, r0, r5, set_flags=True)
+    jns(L.dma_for_large_stride)
+    nop() # delay slot
+    nop() # delay slot
+    nop() # delay slot
+    if True:
 
-    for block in range(2):
-        # ncols = min(R-(((R+31)/32-j)*2+block)*16, 16)
-        ldi(r1, 31)
-        rotate(broadcast, r2, -R_IDX)
-        iadd(r1, r1, r5)
-        shr(r1, r1, 5)
-        rotate(broadcast, r2, -J_IDX)
+        # nrows = min(P-((P+15)/16-i)*16, 16)
+        rotate(broadcast, r2, -P_IDX)
+        iadd(r1, r5, 15)
+        shr(r1, r1, 4)
+        rotate(broadcast, r2, -I_IDX)
         isub(r1, r1, r5)
-        shl(r1, r1, 1)
-        iadd(r1, r1, block)
         shl(r1, r1, 4)
-        rotate(broadcast, r2, -R_IDX)
+        rotate(broadcast, r2, -P_IDX)
         isub(r1, r5, r1)
         rotate(broadcast, r1, 0)
         ldi(r1, 16)
         imin(r1, r1, r5)
-        # band(r1, r1, 0xF)
-        ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
+        ldi(null, mask(NROWS_IDX), set_flags=True)
         mov(r3, r1, cond='zs')
 
-        # load setup params
-        band(r1, r1, 0xF)
-        shl(r1, r1, 4)     # ncols<<4
-        rotate(broadcast, r3, -NROWS_IDX)
-        band(r0, r5, 0xF)
-        bor(r1, r1, r0)    # ncols<<4|nrows
-        shl(r1, r1, 8)     # (ncols<<4|nrows)<<8
-        shl(r1, r1, 8)     # (ncols<<4|nrows)<<8<<8 = ncols<<20|nrows<<16
-        ldi(r0,
-            0x80000000|    # setup_dma_load
-            0<<28|         # 32bit
-            0<<24|         # use the extended pitch setup register
-            1<<12|         # vpitch=1
-            0<<11|         # horizontal
-            (block*16)<<4| # Y=16*block
-            0)             # X=0
-        ldi(null, mask(LOAD_SETUP_IDXS[block]), set_flags=True)
-        bor(r3, r0, r1, cond='zs')
+        for block in range(2):
+            # ncols = min(R-(((R+31)/32-j)*2+block)*16, 16)
+            ldi(r1, 31)
+            rotate(broadcast, r2, -R_IDX)
+            iadd(r1, r1, r5)
+            shr(r1, r1, 5)
+            rotate(broadcast, r2, -J_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 1)
+            iadd(r1, r1, block)
+            shl(r1, r1, 4)
+            rotate(broadcast, r2, -R_IDX)
+            isub(r1, r5, r1)
+            rotate(broadcast, r1, 0)
+            ldi(r1, 16)
+            imin(r1, r1, r5)
+            # band(r1, r1, 0xF)
+            ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
+            mov(r3, r1, cond='zs')
 
-        # store setup params
-        rotate(broadcast, r3, -NROWS_IDX)
-        shl(r1, r5, 7)     # nrows<<7
-        rotate(broadcast, r3, -NCOLS_IDXS[block])
-        bor(r1, r1, r5)    # nrows<<7|ncols
-        shl(r1, r1, 8)     # (nrows<<7|ncols)<<8
-        shl(r1, r1, 8)     # (nrows<<7|ncols)<<8<<8 = nrows<<23|ncols<<16
-        ldi(r0,
-            0x80000000|    # setup_dma_store
-            1<<14|         # horizontal
-            (16*block)<<7| # Y=16*block
-            0<<3|          # X=0
-            0)             # 32bit
-        ldi(null, mask(STORE_SETUP_IDXS[block]), set_flags=True)
-        bor(r3, r0, r1, cond='zs')
+            # load setup params
+            band(r1, r1, 0xF)
+            shl(r1, r1, 4)     # ncols<<4
+            rotate(broadcast, r3, -NROWS_IDX)
+            band(r0, r5, 0xF)
+            bor(r1, r1, r0)    # ncols<<4|nrows
+            shl(r1, r1, 8)     # (ncols<<4|nrows)<<8
+            shl(r1, r1, 8)     # (ncols<<4|nrows)<<8<<8 = ncols<<20|nrows<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_load
+                0<<28|         # 32bit
+                0<<24|         # use the extended pitch setup register
+                1<<12|         # vpitch=1
+                0<<11|         # horizontal
+                (block*16)<<4| # Y=16*block
+                0)             # X=0
+            ldi(null, mask(LOAD_SETUP_IDXS[block]), set_flags=True)
+            bor(r3, r0, r1, cond='zs')
 
-    def setup_dma_load_block(block):
-        rotate(broadcast, r3, -LOAD_SETUP_IDXS[block]) # will be delay slot
-        nop()                                          # will be delay slot
-        mov(vpmvcd_rd_setup, r5)
+            # store setup params
+            rotate(broadcast, r3, -NROWS_IDX)
+            shl(r1, r5, 7)     # nrows<<7
+            rotate(broadcast, r3, -NCOLS_IDXS[block])
+            bor(r1, r1, r5)    # nrows<<7|ncols
+            shl(r1, r1, 8)     # (nrows<<7|ncols)<<8
+            shl(r1, r1, 8)     # (nrows<<7|ncols)<<8<<8 = nrows<<23|ncols<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_store
+                1<<14|         # horizontal
+                (16*block)<<7| # Y=16*block
+                0<<3|          # X=0
+                0)             # 32bit
+            ldi(null, mask(STORE_SETUP_IDXS[block]), set_flags=True)
+            bor(r3, r0, r1, cond='zs')
 
-    def setup_dma_store_block(block):
-        # stride = C_stride - 4 * ncols
-        rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
-        imul24(r1, r5, 4)                         # will be delay slot
+        def setup_dma_load_block(block):
+            rotate(broadcast, r3, -LOAD_SETUP_IDXS[block]) # will be delay slot
+            nop()                                          # will be delay slot
+            mov(vpmvcd_rd_setup, r5)
+
+        def setup_dma_store_block(block):
+            # stride = C_stride - 4 * ncols
+            rotate(broadcast, r3, -NCOLS_IDXS[block]) # will be delay slot
+            imul24(r1, r5, 4)                         # will be delay slot
+            rotate(broadcast, r2, -C_STRIDE_IDX)
+            isub(r1, r5, r1)
+            setup_dma_store_stride(r1)
+
+            rotate(broadcast, r3, -STORE_SETUP_IDXS[block])
+            mov(vpmvcd_wr_setup, r5)
+
+        # blocks = min((R-((R+31)/32-j)*32+15)/16, 2)
+        ldi(r1, 31)                   # 31
+        rotate(broadcast, r2, -R_IDX)
+        iadd(r1, r1, r5)              # R+31
+        shr(r1, r1, 5)                # (R+31)/32
+        rotate(broadcast, r2, -J_IDX)
+        isub(r1, r1, r5)              # (R+31)/32-j
+        shl(r1, r1, 5)                # ((R+31)/32-j)*32
+        rotate(broadcast, r2, -R_IDX)
+        isub(r1, r5, r1)              # R-((R+31)/32-j)*32
+        iadd(r1, r1, 15)              # R-((R+31)/32-j)*32+15
+        shr(r1, r1, 4)                # (R-((R+31)/32-j)*32+15)/16
+        imin(r1, r1, 2)
+        ldi(null, mask(LOAD_BLOCKS_IDX, STORE_BLOCKS_IDX), set_flags=True)
+        mov(r3, r1, cond='zs')
+
+        mutex_acquire()
+
+        # Set stride for DMA to load and store C.
         rotate(broadcast, r2, -C_STRIDE_IDX)
+        setup_dma_load_stride(r5, tmp_reg=r1)
+
+        # Issue load of block 0
+        setup_dma_load_block(0)
+        rotate(broadcast, r2, -C_CUR_IDX)
+        start_dma_load(r5)
+        rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
+        ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
+        isub(r3, r5, 1, cond='zs')
+
+        # Issue loading of block 1
+        rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
+        mov(r0, r5, set_flags=True)
+        jzs(L.skip_load_block_1)
+        wait_dma_load()  # Wait for load of block 0  # delay slot
+        setup_dma_load_block(1)                      # delay slot (head 2 instruction)
+        ldi(r0, 4*16)
+        rotate(broadcast, r2, -C_CUR_IDX)
+        iadd(vpm_ld_addr, r5, r0)
+        ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        L.skip_load_block_1
+
+        # Load alpha and beta.
+        rotate(r0, r2, -COEF_ADDR_IDX)
+        mov(uniforms_address, r0)
+
+        # Setup VPM access for block 0
+        setup_vpm_read(mode='32bit vertical', Y=0, X=0, nrows=16)
+        setup_vpm_write(mode='32bit vertical', Y=0, X=0)
+
+        mov(r1, uniform)        # r1=alpha
+        mov(broadcast, uniform) # r5=beta
+
+        fmul(rb0, rb0, r1)
+        fmul(r0, vpm, r5)
+        for i in range(7):
+            fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
+            mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+            fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+            mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, rb7, r0).fmul(ra7, ra7, r1)
+        mov(rb7, 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra7, r0)
+        mov(ra7, 0.0)
+
+        # Issue store of block 0
+        setup_dma_store_block(0)
+        rotate(broadcast, r2, -C_CUR_IDX)
+        start_dma_store(r5)
+        ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+
+        wait_dma_load()  # Wait for load of block 1
+
+        # Load alpha and beta.
+        rotate(r0, r2, -COEF_ADDR_IDX)
+        mov(uniforms_address, r0)
+
+        # Setup VPM access for block 1
+        setup_vpm_read(mode='32bit vertical', Y=16, X=0, nrows=16)
+        setup_vpm_write(mode='32bit vertical', Y=16, X=0)
+
+        mov(r1, uniform)        # r1=alpha
+        mov(broadcast, uniform) # r5=beta
+
+        fmul(rb8, rb8, r1)
+        fmul(r0, vpm, r5)
+        for i in range(8, 15):
+            fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
+            mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+            fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+            mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, rb15, r0).fmul(ra15, ra15, r1)
+        mov(rb15, 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra15, r0)
+        mov(ra15, 0.0)
+
+        # Issue store of block 1
+        rotate(broadcast, r3, -STORE_BLOCKS_IDX)
+        mov(r0, r5, set_flags=True)
+        jzs(L.skip_store_block_1)
+        wait_dma_store() # Wait for store of block 0  # delay slot
+        setup_dma_store_block(1)                      # delay slot (head 2 instruction)
+        ldi(r0, 4*16)
+        rotate(broadcast, r2, -C_CUR_IDX)
+        iadd(vpm_st_addr, r5, r0)
+        ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        L.skip_store_block_1
+
+        wait_dma_store() # Wait for store of block 1
+        mutex_release()
+
+        jmp(L.dma_done)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+
+    L.dma_for_large_stride
+    if True:
+        mov(r3, 1)
+
+        # nrows = min(P-((P+15)/16-i)*16, 16)
+        rotate(broadcast, r2, -P_IDX)
+        iadd(r1, r5, 15)
+        shr(r1, r1, 4)
+        rotate(broadcast, r2, -I_IDX)
+        isub(r1, r1, r5)
+        shl(r1, r1, 4)
+        rotate(broadcast, r2, -P_IDX)
         isub(r1, r5, r1)
-        setup_dma_store_stride(r1)
+        rotate(broadcast, r1, 0)
+        ldi(r1, 16)
+        imin(r1, r1, r5)
+        ldi(null, mask(NROWS_IDX), set_flags=True)
+        mov(r3, r1, cond='zs')
 
-        rotate(broadcast, r3, -STORE_SETUP_IDXS[block])
-        mov(vpmvcd_wr_setup, r5)
+        for block in range(2):
+            # ncols = min(R-(((R+31)/32-j)*2+block)*16, 16)
+            ldi(r1, 31)
+            rotate(broadcast, r2, -R_IDX)
+            iadd(r1, r1, r5)
+            shr(r1, r1, 5)
+            rotate(broadcast, r2, -J_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 1)
+            iadd(r1, r1, block)
+            shl(r1, r1, 4)
+            rotate(broadcast, r2, -R_IDX)
+            isub(r1, r5, r1)
+            rotate(broadcast, r1, 0)
+            ldi(r1, 16)
+            imin(r1, r1, r5)
+            # band(r1, r1, 0xF)
+            ldi(null, mask(NCOLS_IDXS[block]), set_flags=True)
+            mov(r3, r1, cond='zs')
 
-    # blocks = min((R-((R+31)/32-j)*32+15)/16, 2)
-    ldi(r1, 31)                   # 31
-    rotate(broadcast, r2, -R_IDX)
-    iadd(r1, r1, r5)              # R+31
-    shr(r1, r1, 5)                # (R+31)/32
-    rotate(broadcast, r2, -J_IDX)
-    isub(r1, r1, r5)              # (R+31)/32-j
-    shl(r1, r1, 5)                # ((R+31)/32-j)*32
-    rotate(broadcast, r2, -R_IDX)
-    isub(r1, r5, r1)              # R-((R+31)/32-j)*32
-    iadd(r1, r1, 15)              # R-((R+31)/32-j)*32+15
-    shr(r1, r1, 4)                # (R-((R+31)/32-j)*32+15)/16
-    imin(r1, r1, 2)
-    ldi(null, mask(LOAD_BLOCKS_IDX, STORE_BLOCKS_IDX), set_flags=True)
-    mov(r3, r1, cond='zs')
+        # blocks = min((R-((R+31)/32-j)*32+15)/16, 4)
+        ldi(r1, 31)                   # 31
+        rotate(broadcast, r2, -R_IDX)
+        iadd(r1, r1, r5)              # R+31
+        shr(r1, r1, 5)                # (R+31)/32
+        rotate(broadcast, r2, -J_IDX)
+        isub(r1, r1, r5)              # (R+31)/32-j
+        shl(r1, r1, 5)                # ((R+31)/32-j)*32
+        rotate(broadcast, r2, -R_IDX)
+        isub(r1, r5, r1)              # R-((R+31)/32-j)*32
+        iadd(r1, r1, 15)              # R-((R+31)/32-j)*32+15
+        shr(r1, r1, 4)                # (R-((R+31)/32-j)*32+15)/16
+        imin(r1, r1, 4)
+        ldi(null, mask(LOAD_BLOCKS_IDX, STORE_BLOCKS_IDX), set_flags=True)
+        mov(r3, r1, cond='zs')
 
-    mutex_acquire()
+        mutex_acquire()
 
-    # Set stride for DMA to load and store C.
-    rotate(broadcast, r2, -C_STRIDE_IDX)
-    setup_dma_load_stride(r5, tmp_reg=r1)
+        # Issue load of block 0
+        ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        nop()
 
-    # Issue load of block 0
-    setup_dma_load_block(0)
-    rotate(broadcast, r2, -C_CUR_IDX)
-    start_dma_load(r5)
-    rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
-    ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
-    isub(r3, r5, 1, cond='zs')
+        rotate(broadcast, r3, -NROWS_IDX)
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        mov(r3, r5, cond='zs')
+        nop()
+        L.dma_for_large_stride_row_load_block_0_loop
+        if True:
+            rotate(broadcast, r3, -NCOLS_IDXS[0])
+            band(r1, r5, 0xF)
+            shl(r1, r1, 4)     # ncols<<4
+            bor(r1, r1, 1)     # ncols<<4|1
+            shl(r1, r1, 8)     # (ncols<<4|1)<<8
+            shl(r1, r1, 8)     # (ncols<<4|1)<<8<<8 = ncols<<20|1<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_load
+                0<<28|         # 32bit
+                0<<24|         # use the extended pitch setup register
+                1<<12|         # vpitch=1
+                0<<11|         # horizontal
+                (0*16)<<4|     # Y=16*0
+                0)             # X=0
+            bor(r0, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 4)
+            bor(vpmvcd_rd_setup, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            rotate(broadcast, r2, -C_CUR_IDX)
+            mov(r0, r5)
+            rotate(broadcast, r2, -C_STRIDE_IDX)
+            imul24(r1, r1, r5)
+            iadd(r0, r0, r1)
+            wait_dma_load()
+            start_dma_load(r0)
 
-    # Issue loading of block 1
-    rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
-    mov(r0, r5, set_flags=True)
-    jzs(L.skip_load_block_1)
-    wait_dma_load()  # Wait for load of block 0  # delay slot
-    setup_dma_load_block(1)                      # delay slot (head 2 instruction)
-    ldi(r0, 4*16)
-    rotate(broadcast, r2, -C_CUR_IDX)
-    iadd(vpm_ld_addr, r5, r0)
-    ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
-    isub(r3, r3, 1, cond='zs')
-    L.skip_load_block_1
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        jzc(L.dma_for_large_stride_row_load_block_0_loop)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        wait_dma_load()
 
-    # Load alpha and beta.
-    rotate(r0, r2, -COEF_ADDR_IDX)
-    mov(uniforms_address, r0)
+        # Load alpha and beta.
+        rotate(r0, r2, -COEF_ADDR_IDX)
+        mov(uniforms_address, r0)
 
-    # Setup VPM access for block 0
-    setup_vpm_read(mode='32bit vertical', Y=0, X=0, nrows=16)
-    setup_vpm_write(mode='32bit vertical', Y=0, X=0)
+        # Setup VPM access for block 0
+        setup_vpm_read(mode='32bit vertical', Y=0, X=0, nrows=16)
+        setup_vpm_write(mode='32bit vertical', Y=0, X=0)
 
-    mov(r1, uniform)        # r1=alpha
-    mov(broadcast, uniform) # r5=beta
+        mov(r1, uniform)        # r1=alpha
+        mov(broadcast, uniform) # r5=beta
 
-    fmul(rb0, rb0, r1)
-    fmul(r0, vpm, r5)
-    for i in range(7):
-        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
-        mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, rb7, r0).fmul(ra7, ra7, r1)
-    mov(rb7, 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, ra7, r0)
-    mov(ra7, 0.0)
+        fmul(rb0, rb0, r1)
+        fmul(r0, vpm, r5)
+        for i in range(7):
+            fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
+            mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+            fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+            mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, rb7, r0).fmul(ra7, ra7, r1)
+        mov(rb7, 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra7, r0)
+        mov(ra7, 0.0)
 
-    # Issue store of block 0
-    setup_dma_store_block(0)
-    rotate(broadcast, r2, -C_CUR_IDX)
-    start_dma_store(r5)
-    ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
-    isub(r3, r3, 1, cond='zs')
+        # Issue store of block 0
+        ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        nop()
 
-    wait_dma_load()  # Wait for load of block 1
+        rotate(broadcast, r3, -NROWS_IDX)
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        mov(r3, r5, cond='zs')
+        nop()
+        L.dma_for_large_stride_row_store_block_0_loop
+        if True:
+            # store setup params
+            mov(r1, 1)
+            shl(r1, r1, 7)     # 1<<7
+            rotate(broadcast, r3, -NCOLS_IDXS[0])
+            bor(r1, r1, r5)    # 1<<7|ncols
+            shl(r1, r1, 8)     # (1<<7|ncols)<<8
+            shl(r1, r1, 8)     # (1<<7|ncols)<<8<<8 = 1<<23|ncols<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_store
+                1<<14|         # vertical
+                (16*0)<<7|     # Y=16*0
+                0<<3|          # X=0
+                0)             # 32bit
+            bor(r0, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 7)
+            bor(vpmvcd_wr_setup, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            rotate(broadcast, r2, -C_CUR_IDX)
+            mov(r0, r5)
+            rotate(broadcast, r2, -C_STRIDE_IDX)
+            imul24(r1, r1, r5)
+            iadd(r0, r0, r1)
+            wait_dma_store()
+            start_dma_store(r0)
 
-    # Load alpha and beta.
-    rotate(r0, r2, -COEF_ADDR_IDX)
-    mov(uniforms_address, r0)
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        jzc(L.dma_for_large_stride_row_store_block_0_loop)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        wait_dma_store()
 
-    # Setup VPM access for block 1
-    setup_vpm_read(mode='32bit vertical', Y=16, X=0, nrows=16)
-    setup_vpm_write(mode='32bit vertical', Y=16, X=0)
 
-    mov(r1, uniform)        # r1=alpha
-    mov(broadcast, uniform) # r5=beta
+        # Issue load of block 1
+        rotate(broadcast, r3, -LOAD_BLOCKS_IDX)
+        mov(r0, r5, set_flags=True)
+        jzs(L.dma_for_large_stride_skip_load_block_1)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        ldi(null, mask(LOAD_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        nop()
 
-    fmul(rb8, rb8, r1)
-    fmul(r0, vpm, r5)
-    for i in range(8, 15):
-        fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
-        mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
-        fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
-        mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, rb15, r0).fmul(ra15, ra15, r1)
-    mov(rb15, 0.0)     .fmul(r0, vpm, r5)
-    fadd(vpm, ra15, r0)
-    mov(ra15, 0.0)
+        rotate(broadcast, r3, -NROWS_IDX)
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        mov(r3, r5, cond='zs')
+        nop()
+        L.dma_for_large_stride_row_load_block_1_loop
+        if True:
+            rotate(broadcast, r3, -NCOLS_IDXS[1])
+            band(r1, r5, 0xF)
+            shl(r1, r1, 4)     # ncols<<4
+            bor(r1, r1, 1)     # ncols<<4|1
+            shl(r1, r1, 8)     # (ncols<<4|1)<<8
+            shl(r1, r1, 8)     # (ncols<<4|1)<<8<<8 = ncols<<20|1<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_load
+                0<<28|         # 32bit
+                0<<24|         # use the extended pitch setup register
+                1<<12|         # vpitch=1
+                0<<11|         # vertical
+                (1*16)<<4|     # Y=16*1
+                0)             # X=0
+            bor(r0, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 4)
+            bor(vpmvcd_rd_setup, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            ldi(r0, 16*4)
+            rotate(broadcast, r2, -C_CUR_IDX)
+            iadd(r0, r0, r5)
+            rotate(broadcast, r2, -C_STRIDE_IDX)
+            imul24(r1, r1, r5)
+            iadd(r0, r0, r1)
+            wait_dma_load()
+            start_dma_load(r0)
 
-    # Issue store of block 1
-    rotate(broadcast, r3, -STORE_BLOCKS_IDX)
-    mov(r0, r5, set_flags=True)
-    jzs(L.skip_store_block_1)
-    wait_dma_store() # Wait for store of block 0  # delay slot
-    setup_dma_store_block(1)                      # delay slot (head 2 instruction)
-    ldi(r0, 4*16)
-    rotate(broadcast, r2, -C_CUR_IDX)
-    iadd(vpm_st_addr, r5, r0)
-    ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
-    isub(r3, r3, 1, cond='zs')
-    L.skip_store_block_1
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        jzc(L.dma_for_large_stride_row_load_block_1_loop)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        wait_dma_load()
 
-    wait_dma_store() # Wait for store of block 1
-    mutex_release()
+        L.dma_for_large_stride_skip_load_block_1
+
+        # Load alpha and beta.
+        rotate(r0, r2, -COEF_ADDR_IDX)
+        mov(uniforms_address, r0)
+
+        # Setup VPM access for block 1
+        setup_vpm_read(mode='32bit vertical', Y=16*1, X=0, nrows=16)
+        setup_vpm_write(mode='32bit vertical', Y=16*1, X=0)
+
+        mov(r1, uniform)        # r1=alpha
+        mov(broadcast, uniform) # r5=beta
+
+        fmul(rb8, rb8, r1)
+        fmul(r0, vpm, r5)
+        for i in range(8, 15):
+            fadd(vpm, rb[i], r0).fmul(ra[i], ra[i], r1)
+            mov(rb[i], 0.0)     .fmul(r0, vpm, r5)
+            fadd(vpm, ra[i], r0).fmul(rb[i+1], rb[i+1], r1)
+            mov(ra[i], 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, rb15, r0).fmul(ra15, ra15, r1)
+        mov(rb15, 0.0)     .fmul(r0, vpm, r5)
+        fadd(vpm, ra15, r0)
+        mov(ra15, 0.0)
+
+        # Issue store of block 1
+        rotate(broadcast, r3, -STORE_BLOCKS_IDX)
+        mov(r0, r5, set_flags=True)
+        jzs(L.dma_for_large_stride_skip_store_block_1)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        ldi(null, mask(STORE_BLOCKS_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        nop()
+
+        rotate(broadcast, r3, -NROWS_IDX)
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        mov(r3, r5, cond='zs')
+        nop()
+        L.dma_for_large_stride_row_store_block_1_loop
+        if True:
+            # store setup params
+            mov(r1, 1)
+            shl(r1, r1, 7)     # 1<<7
+            rotate(broadcast, r3, -NCOLS_IDXS[1])
+            bor(r1, r1, r5)    # 1<<7|ncols
+            shl(r1, r1, 8)     # (1<<7|ncols)<<8
+            shl(r1, r1, 8)     # (1<<7|ncols)<<8<<8 = 1<<23|ncols<<16
+            ldi(r0,
+                0x80000000|    # setup_dma_store
+                1<<14|         # horizontal
+                (16*1)<<7|     # Y=16*1
+                0<<3|          # X=0
+                0)             # 32bit
+            bor(r0, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            shl(r1, r1, 7)
+            bor(vpmvcd_wr_setup, r0, r1)
+            rotate(broadcast, r3, -NROWS_IDX)
+            mov(r1, r5)
+            rotate(broadcast, r3, -ROW_IDX)
+            isub(r1, r1, r5)
+            ldi(r0, 16*4)
+            rotate(broadcast, r2, -C_CUR_IDX)
+            iadd(r0, r0, r5)
+            rotate(broadcast, r2, -C_STRIDE_IDX)
+            imul24(r1, r1, r5)
+            iadd(r0, r0, r1)
+            wait_dma_store()
+            start_dma_store(r0)
+
+        ldi(null, mask(ROW_IDX), set_flags=True)
+        isub(r3, r3, 1, cond='zs')
+        jzc(L.dma_for_large_stride_row_store_block_1_loop)
+        nop() # delay slot
+        nop() # delay slot
+        nop() # delay slot
+        wait_dma_store()
+
+        L.dma_for_large_stride_skip_store_block_1
+
+        mutex_release()
+
+    L.dma_done
 
     rotate(broadcast, r2, -J_IDX)
     isub(r0, r5, 1)
@@ -597,7 +943,7 @@ def main():
         # Initialize matrices.
         np.random.seed(0)
         alpha = 1.0
-        beta = 0.0
+        beta = 1.0
         A[:] = np.random.randn(p, q) # np.ones(shape=(p, q)) #
         B[:] = np.random.randn(r, q) # np.ones(shape=(r, q)) #
         C[:] = np.random.randn(p, r) # np.ones(shape=(p, r)) # np.arange(p*r).reshape(p, r) + 1 #

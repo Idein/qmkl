@@ -162,7 +162,7 @@ static int rand_int_in_range(int from, int to) {
         puts("");                                           \
         for (i = 0; i < 8; ++i) {                           \
             int M = rand_int_in_range(64 * 12, 1024);       \
-            int N = rand_int_in_range(64 * 12, 1024);       \
+            int N = rand_int_in_range(4096, 8192);          \
             int K = rand_int_in_range(2, 128);              \
             printf("M = %d, N = %d K = %d\n", M, N, K);     \
             TEST_FUNCTION(M, N, K);                         \
