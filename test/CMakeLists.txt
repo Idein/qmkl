@@ -23,7 +23,7 @@ add_executable (
 )
 target_link_libraries (
     sgemm LINK_PUBLIC
-    qmkl
+    m qmkl
 )
 
 add_executable (

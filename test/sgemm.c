@@ -15,7 +15,9 @@
 #include <sys/time.h>
 #include <omp.h>
 
+#if 0
 #define DO_1FILL
+#endif
 
 #ifdef _HAVE_NEON_
 #include <arm_neon.h>
@@ -40,13 +42,19 @@ static void mf_srandom()
     srandom(tv.tv_sec ^ tv.tv_usec);
 }
 
+static float urand()
+{
+    return random() / (float) RAND_MAX;
+}
+
 static void mf_init_random(float *p, const int height, const int width)
 {
     int i, j;
 
     for (i = 0; i < height; i ++)
         for (j = 0; j < width; j ++)
-            p[i * width + j] = (random() % 100000) / 1357.9;
+            p[i * width + j] = cosf(2.0 * M_PI * urand())
+                               * sqrtf(-2.0 * logf(1.0 - urand()));
 }
 
 #endif /* DO_1FILL */
@@ -105,18 +113,6 @@ static float mf_maximum_relative_error(float *C1, float *C2, const int P, const 
         }
     }
     return maximum_error;
-}
-
-static void mf_print(float *p, const int height, const int width)
-{
-    int i, j;
-
-    for (i = 0; i < height; i ++) {
-        printf("%4d:", i);
-        for (j = 0; j < width; j ++)
-            printf(" %1.0f", p[i * width + j]);
-        printf("\n");
-    }
 }
 
 static void mf_sgemm(float *A, float *B, float *C, const int P, const int Q, const int R, const float ALPHA, const float BETA)
@@ -291,9 +287,9 @@ int main()
     mf_init_constant(B, Q, R, 1);
     mf_init_constant(C, P, R, 1);
 #else /* DO_1FILL */
+    ALPHA = 1.0;
+    BETA = 1.0;
     mf_srandom();
-    mf_init_random(&ALPHA, 1, 1);
-    mf_init_random(&BETA,  1, 1);
     mf_init_random(A, P, Q);
     mf_init_random(B, Q, R);
     mf_init_random(C, P, R);
