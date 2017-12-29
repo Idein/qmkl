@@ -13,6 +13,7 @@ list (APPEND qmkl_SOURCES
     main.c
     mailbox.c
     memory.c
+    map.c
     launch_qpu_code.c
     error.c
     $<TARGET_OBJECTS:blas>
