@@ -1,6 +1,6 @@
 include (../cmake/qasm2m4_dep_on_c.cmake)
 include (../cmake/qbin_dep_on_c.cmake)
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra ${VCSM_CFLAGS}")
 
 include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/include
