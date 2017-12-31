@@ -23,6 +23,8 @@ void error_fatal_core(const char *file, const int line, const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 
+    qmkl_memory_dump_allocated();
+
     exit(EXIT_FAILURE);
 }
 

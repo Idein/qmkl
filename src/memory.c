@@ -32,6 +32,14 @@ struct mem_allocated_list {
     struct mem_allocated_list *next;
 } *mem_allocated_list_head = NULL;
 
+void qmkl_memory_cache_on_cpu(const int is_cache_on_cpu)
+{
+    if (is_cache_on_cpu)
+        vc4mem_cfgp = &vc4mem_cfg_cached;
+    else
+        vc4mem_cfgp = &vc4mem_cfg_noncached;
+}
+
 void memory_init()
 {
     if (++called.memory != 1)

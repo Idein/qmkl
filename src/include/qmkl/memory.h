@@ -19,6 +19,7 @@
     void unmap_on_cpu(void *ptr_cpu, size_t alloc_size);
     void* mkl_malloc(size_t alloc_size, int alignment);
     void mkl_free(void *a_ptr);
+    void qmkl_memory_dump_allocated();
     MKL_UINT get_ptr_gpu_from_ptr_cpu(const void *ptr_cpu);
     void unif_set_uint(MKL_UINT *p, const MKL_UINT u);
     void unif_set_float(MKL_UINT *p, const float f);
