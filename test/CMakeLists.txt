@@ -23,7 +23,7 @@ add_executable (
 )
 target_link_libraries (
     sgemm LINK_PUBLIC
-    m qmkl
+    m qmkl ${VC4MEM_LDFLAGS}
 )
 
 add_executable (
@@ -32,7 +32,7 @@ add_executable (
 )
 target_link_libraries (
     scopy LINK_PUBLIC
-    qmkl
+    qmkl ${VC4MEM_LDFLAGS}
 )
 
 add_executable (
@@ -41,7 +41,7 @@ add_executable (
 )
 target_link_libraries (
     vsAbs LINK_PUBLIC
-    qmkl
+    qmkl ${VC4MEM_LDFLAGS}
 )
 
 
@@ -61,7 +61,7 @@ add_executable (
 add_dependencies(sgemm_spec qmkl-static)
 target_link_libraries (
     sgemm_spec
-    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES} ${VC4MEM_LDFLAGS}
 )
 add_executable (
     memory_bench
@@ -70,7 +70,7 @@ add_executable (
 add_dependencies(memory_bench qmkl-static)
 target_link_libraries (
     memory_bench
-    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${VC4MEM_LDFLAGS}
 )
 endif(CUNIT_FOUND)
 

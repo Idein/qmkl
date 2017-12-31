@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.0)
 
 project (qmkl)
 
+find_package(PkgConfig)
 find_package(OpenMP)
 
 find_program (QASM2 qasm2)
@@ -18,6 +19,8 @@ find_program (M4 m4)
 if (NOT M4)
     message (FATAL_ERROR "m4 not found.")
 endif ()
+
+pkg_check_modules(VC4MEM REQUIRED libvc4mem)
 
 add_subdirectory (src)
 add_subdirectory (test)

@@ -9,7 +9,9 @@
 
 #include "qmkl.h"
 #include "local/called.h"
+#include "local/common.h"
 #include "local/error.h"
+#include <vc4mem.h>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -28,8 +30,8 @@ void launch_qpu_code_init()
     mailbox_init();
     fd_mb = mailbox_open();
     mailbox_qpu_enable(fd_mb, 1);
-    ml_control_cpu = mkl_malloc(MAX_QPUS * 2 * (32 / 8), 4096);
-    ml_control_gpu = get_ptr_gpu_from_ptr_cpu(ml_control_cpu);
+    ml_control_cpu = mkl_malloc_noncached(MAX_QPUS * 2 * (32 / 8), 4096,
+            &ml_control_gpu);
 }
 
 void launch_qpu_code_finalize()
@@ -37,7 +39,7 @@ void launch_qpu_code_finalize()
     if (--called.launch_qpu_code != 0)
         return;
 
-    mkl_free(ml_control_cpu);
+    mkl_free_noncached(ml_control_cpu);
     mailbox_qpu_enable(fd_mb, 0);
     mailbox_close(fd_mb);
     mailbox_finalize();

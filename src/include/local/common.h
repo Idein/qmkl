@@ -12,9 +12,11 @@
 
 #include "qmkl/types.h"
 #include <sys/types.h>
+#include <vc4mem.h>
 
     extern MKL_UINT *unif_common_cpu, *code_common_cpu;
     extern MKL_UINT unif_common_gpu, code_common_gpu;
+    extern struct vc4mem_config *vc4mem_cfgp;
 
     void unif_and_code_size_req(const size_t unif_size_req, const size_t code_size_req);
 

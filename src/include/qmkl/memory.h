@@ -13,12 +13,17 @@
 #include <sys/types.h>
 #include "qmkl/types.h"
 
+    void qmkl_memory_cache_on_cpu(const int is_cache_on_cpu);
     void memory_init();
     void memory_finalize();
     void* map_on_cpu(MKL_UINT ptr_gpu, size_t alloc_size);
     void unmap_on_cpu(void *ptr_cpu, size_t alloc_size);
+    void qmkl_cache_on_cpu(const int is_cache_on_cpu);
     void* mkl_malloc(size_t alloc_size, int alignment);
+    void* mkl_malloc_noncached(size_t alloc_size, int alignment,
+            MKL_UINT *ptr_gpup);
     void mkl_free(void *a_ptr);
+    void mkl_free_noncached(void *a_ptr);
     void qmkl_memory_dump_allocated();
     MKL_UINT get_ptr_gpu_from_ptr_cpu(const void *ptr_cpu);
     void unif_set_uint(MKL_UINT *p, const MKL_UINT u);

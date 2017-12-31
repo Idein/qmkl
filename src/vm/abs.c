@@ -51,5 +51,13 @@ void vsAbs(MKL_INT n, const float *a, float *y)
 
     memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
 
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 2,
+            VC4MEM_CPU_CACHE_OP_CLEAN, a_gpu, n * sizeof(*a),
+            VC4MEM_CPU_CACHE_OP_CLEAN, y_gpu, n * sizeof(*y)
+            );
     launch_qpu_code_mailbox(1, 1, 5e3, unif_common_gpu, code_common_gpu);
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 2,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, a_gpu, n * sizeof(*a),
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, y_gpu, n * sizeof(*y)
+            );
 }

@@ -54,14 +54,14 @@ void qmkl_init()
     if (called.vm_abs <= 0)
         error_fatal("called.vm_abs is 0 or negative: %d\n", called.vm_abs);
 
-    if (unif_size != 0) {
-        unif_common_cpu = mkl_malloc(unif_size, 4096);
-        unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
-    }
-    if (code_size != 0) {
-        code_common_cpu = mkl_malloc(code_size, 4096);
-        code_common_gpu = get_ptr_gpu_from_ptr_cpu(code_common_cpu);
-    }
+    if (unif_size != 0)
+        unif_common_cpu = mkl_malloc_noncached(unif_size, 4096,
+                &unif_common_gpu);
+    if (code_size != 0)
+        code_common_cpu = mkl_malloc_noncached(code_size, 4096,
+                &code_common_gpu);
+
+    qmkl_memory_cache_on_cpu(1);
 }
 
 void qmkl_finalize()
@@ -69,8 +69,8 @@ void qmkl_finalize()
     if (--called.main != 0)
         return;
 
-    mkl_free(code_common_cpu);
-    mkl_free(unif_common_cpu);
+    mkl_free_noncached(code_common_cpu);
+    mkl_free_noncached(unif_common_cpu);
 
     vm_abs_finalize();
     blas_copy_finalize();

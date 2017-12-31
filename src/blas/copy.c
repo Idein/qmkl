@@ -11,6 +11,7 @@
 #include "local/common.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <vc4mem.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,5 +61,13 @@ void cblas_scopy(
 
     memcpy(code_common_cpu, code_scopy, sizeof(code_scopy));
 
-    launch_qpu_code_mailbox(1, 1, 100e3, unif_common_gpu, code_common_gpu);
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 2,
+            VC4MEM_CPU_CACHE_OP_CLEAN, x_gpu, n * sizeof(*x),
+            VC4MEM_CPU_CACHE_OP_CLEAN, y_gpu, n * sizeof(*y)
+            );
+    launch_qpu_code_mailbox(1, 1, 5e3, unif_common_gpu, code_common_gpu);
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 2,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, x_gpu, n * sizeof(*x),
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, y_gpu, n * sizeof(*y)
+            );
 }

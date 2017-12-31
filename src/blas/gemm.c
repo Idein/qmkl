@@ -134,6 +134,11 @@ static void cblas_sgemm_RNN(
             h_acc += hi;
         }
     }
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_CLEAN, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, c_gpu, P * R * 4
+            );
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -148,6 +153,11 @@ static void cblas_sgemm_RNN(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, c_gpu, P * R * 4
+            );
 }
 
 static void cblas_sgemm_RNT(
@@ -236,6 +246,11 @@ static void cblas_sgemm_RNT(
             h_acc += hi;
         }
     }
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_CLEAN, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, c_gpu, P * R * 4
+            );
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -250,6 +265,11 @@ static void cblas_sgemm_RNT(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, c_gpu, P * R * 4
+            );
 }
 
 static void cblas_sgemm_RTN(
@@ -338,6 +358,11 @@ static void cblas_sgemm_RTN(
             h_acc += hi;
         }
     }
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_CLEAN, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, c_gpu, P * R * 4
+            );
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -352,6 +377,11 @@ static void cblas_sgemm_RTN(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, c_gpu, P * R * 4
+            );
 }
 
 static void cblas_sgemm_RTT(
@@ -440,6 +470,11 @@ static void cblas_sgemm_RTT(
             h_acc += hi;
         }
     }
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_CLEAN, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_CLEAN, c_gpu, P * R * 4
+            );
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -454,6 +489,11 @@ static void cblas_sgemm_RTT(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
+    vc4mem_cpu_cache_op_v(vc4mem_cfgp, 3,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, a_gpu, P * Q * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, b_gpu, Q * R * 4,
+            VC4MEM_CPU_CACHE_OP_INVALIDATE, c_gpu, P * R * 4
+            );
 }
 
 static void cblas_sgemm_R(
