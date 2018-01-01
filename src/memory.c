@@ -68,22 +68,22 @@ static void mem_allocated_list_free(struct mem_allocated_list *p)
     free(p);
 }
 
-/*
- * The original mkl_malloc returns NULL on failure,
- * but we exit with error in such a situation
- * because we identify GPU handle and memory
- * according to ptr_cpu.
- */
-void* mkl_malloc(size_t alloc_size, int alignment)
+void* mkl_malloc_cache(size_t alloc_size, int alignment,
+        const _Bool use_cpu_cache)
 {
     struct mem_allocated_list *cur = NULL;
+    VCSM_CACHE_TYPE_T cache_type;
     MKL_UINT handle;
     MKL_UINT ptr_gpu;
     void *ptr_cpu_before_align;
     void *ptr_cpu;
 
-    handle = vcsm_malloc_cache(alloc_size + alignment - 1,
-            VCSM_CACHE_TYPE_NONE, "qmkl");
+    if (use_cpu_cache)
+        cache_type = VCSM_CACHE_TYPE_HOST;
+    else
+        cache_type = VCSM_CACHE_TYPE_NONE;
+
+    handle = vcsm_malloc_cache(alloc_size + alignment - 1, cache_type, "qmkl");
     if (!handle)
         error_fatal("Failed to allocate %zu bytes of memory on GPU\n",
                 alloc_size + alignment - 1);
@@ -115,6 +115,17 @@ void* mkl_malloc(size_t alloc_size, int alignment)
     cur->next = NULL;
 
     return ptr_cpu;
+}
+
+/*
+ * The original mkl_malloc returns NULL on failure,
+ * but we exit with error in such a situation
+ * because we identify GPU handle and memory
+ * according to ptr_cpu.
+ */
+void* mkl_malloc(size_t alloc_size, int alignment)
+{
+    return mkl_malloc_cache(alloc_size, alignment, !0);
 }
 
 void mkl_free(void *a_ptr)
@@ -179,4 +190,40 @@ void unif_add_uint(const MKL_UINT u, MKL_UINT **p)
 void unif_add_float(const float f, MKL_UINT **p)
 {
     unif_set_float((*p)++, f);
+}
+
+int qmkl_cache_op(const void *p, const size_t size, enum qmkl_cache_op op)
+{
+    int err;
+    struct vcsm_user_clean_invalid2_s *s;
+    int mode;
+
+    switch (op) {
+        case QMKL_CACHE_OP_INVALIDATE:
+            mode = 1;
+            break;
+        case QMKL_CACHE_OP_CLEAN:
+            mode = 2;
+            break;
+        default:
+            error_fatal("Invalid op: %d\n", op);
+    }
+
+    s = malloc(sizeof(*s) + sizeof(*s->s) * 1);
+    if (s == NULL)
+        error_fatal("Failed to allocate for sync: %s\n", strerror(errno));
+
+    s->op_count = 1;
+    s->s[0].invalidate_mode = mode;
+    s->s[0].block_count = 1;
+    s->s[0].start_address = (void*) p;
+    s->s[0].block_size = size;
+    err = vcsm_clean_invalid2(s);
+
+    free(s);
+
+    if (err)
+        error_fatal("Failed to sync cache: %d\n", err);
+
+    return 0;
 }

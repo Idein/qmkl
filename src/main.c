@@ -59,11 +59,11 @@ void qmkl_init()
         error_fatal("called.vm_abs is 0 or negative: %d\n", called.vm_abs);
 
     if (unif_size != 0) {
-        unif_common_cpu = mkl_malloc(unif_size, 4096);
+        unif_common_cpu = mkl_malloc_cache(unif_size, 4096, 0);
         unif_common_gpu = get_ptr_gpu_from_ptr_cpu(unif_common_cpu);
     }
     if (code_size != 0) {
-        code_common_cpu = mkl_malloc(code_size, 4096);
+        code_common_cpu = mkl_malloc_cache(code_size, 4096, 0);
         code_common_gpu = get_ptr_gpu_from_ptr_cpu(code_common_cpu);
     }
 }

@@ -51,5 +51,9 @@ void vsAbs(MKL_INT n, const float *a, float *y)
 
     memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
 
-    launch_qpu_code_mailbox(1, 1, 5e3, unif_common_gpu, code_common_gpu);
+    qmkl_cache_op(a, n * sizeof(*a), QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op(y, n * sizeof(*y), QMKL_CACHE_OP_CLEAN);
+    launch_qpu_code_mailbox(1, 0, 5e3, unif_common_gpu, code_common_gpu);
+    qmkl_cache_op(a, n * sizeof(*a), QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op(y, n * sizeof(*y), QMKL_CACHE_OP_INVALIDATE);
 }
