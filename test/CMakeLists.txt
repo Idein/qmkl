@@ -5,7 +5,7 @@ include_directories (
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} ${VCSM_CFLAGS}")
 
 execute_process (
     COMMAND uname -m
@@ -44,6 +44,14 @@ target_link_libraries (
     qmkl ${VCSM_LDFLAGS}
 )
 
+add_executable (
+    vcsm
+    vcsm.c
+)
+target_link_libraries (
+    vcsm LINK_PUBLIC
+    qmkl ${VCSM_LDFLAGS}
+)
 
 include(FindPNG)
 
