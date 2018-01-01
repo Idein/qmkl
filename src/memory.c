@@ -192,7 +192,14 @@ void unif_add_float(const float f, MKL_UINT **p)
     unif_set_float((*p)++, f);
 }
 
-int qmkl_cache_op(const void *p, const size_t size, enum qmkl_cache_op op)
+int qmkl_cache_op(const void *p, const size_t size, const enum qmkl_cache_op op)
+{
+    return qmkl_cache_op_2(p, 1, size, 0, op);
+}
+
+int qmkl_cache_op_2(const void *p, const size_t block_count,
+        const size_t block_size, const size_t stride,
+        const enum qmkl_cache_op op)
 {
     int err;
     struct vcsm_user_clean_invalid2_s *s;
@@ -215,9 +222,10 @@ int qmkl_cache_op(const void *p, const size_t size, enum qmkl_cache_op op)
 
     s->op_count = 1;
     s->s[0].invalidate_mode = mode;
-    s->s[0].block_count = 1;
+    s->s[0].block_count = block_count;
     s->s[0].start_address = (void*) p;
-    s->s[0].block_size = size;
+    s->s[0].block_size = block_size;
+    s->s[0].inter_block_stride = stride;
     err = vcsm_clean_invalid2(s);
 
     free(s);

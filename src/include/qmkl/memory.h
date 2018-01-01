@@ -32,7 +32,11 @@
     void unif_add_uint(const MKL_UINT u, MKL_UINT **p);
     void unif_add_float(const float f, MKL_UINT **p);
 
-    int qmkl_cache_op(const void *p, const size_t size, enum qmkl_cache_op op);
+    int qmkl_cache_op(const void *p, const size_t size,
+            const enum qmkl_cache_op op);
+    int qmkl_cache_op_2(const void *p, const size_t block_count,
+            const size_t block_size, const size_t stride,
+            const enum qmkl_cache_op op);
 
 #define BUS_TO_PHYS(addr) ((addr) & ~0xc0000000)
 
