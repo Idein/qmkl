@@ -22,7 +22,14 @@ endif ()
 
 pkg_check_modules(VCSM vcsm)
 if (NOT VCSM_FOUND)
-    message (FATAL_ERROR "Please add /opt/vc/lib/pkgconfig to PKG_CONFIG_PATH environment variable")
+    message(STATUS "Adding /opt/vc/lib/pkgconfig to PKG_CONFIG_PATH")
+    set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/opt/vc/lib/pkgconfig")
+    pkg_check_modules(VCSM vcsm)
+    if (NOT VCSM_FOUND)
+        message (FATAL_ERROR "vcsm not found even in /opt/vc/lib. "
+                             "Building on non-RPi host? "
+                             "Please specify PKG_CONFIG_PATH.")
+    endif ()
 endif ()
 
 add_subdirectory (src)
