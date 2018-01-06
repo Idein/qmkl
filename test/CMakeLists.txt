@@ -1,21 +1,10 @@
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -W -Wall -Wextra \
+                    ${OpenMP_C_FLAGS} ${VCSM_CFLAGS}")
 
 include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/include
     ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} ${VCSM_CFLAGS}")
-
-execute_process (
-    COMMAND uname -m
-    OUTPUT_VARIABLE UNAME_M
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-# If Raspberry Pi 2 or 3...
-if (${UNAME_M} STREQUAL "armv7l")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfloat-abi=hard -mfpu=neon-vfpv4 -march=armv7-a -D_HAVE_NEON_")
-endif ()
 
 add_executable (
     sgemm

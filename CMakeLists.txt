@@ -32,6 +32,54 @@ if (NOT VCSM_FOUND)
     endif ()
 endif ()
 
+if (DEFINED ENV{RPIVER})
+    if     ("$ENV{RPIVER}" STREQUAL "1")
+        set (RPIVER 1)
+    elseif ("$ENV{RPIVER}" STREQUAL "2")
+        set (RPIVER 2)
+    elseif ("$ENV{RPIVER}" STREQUAL "3")
+        set (RPIVER 3)
+    else ()
+        message (FATAL_ERROR "Invalid RPIVER specified: $ENV{RPIVER}")
+    endif ()
+else ()
+    execute_process (
+        COMMAND uname -m
+        OUTPUT_VARIABLE UNAME_M
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if (UNAME_M STREQUAL "armv6l")
+        set (RPIVER 1)
+    else ()
+        if (NOT EXISTS /proc/cpuinfo)
+            message (FATAL_ERROR "/proc is not mounted")
+        endif ()
+        file (STRINGS /proc/cpuinfo IS_RPI3
+                      REGEX "^Features[ \t]*:.*[ \t]*crc32[ \t]*$")
+        if (IS_RPI3)
+            set (RPIVER 3)
+        else ()
+            set (RPIVER 2)
+        endif ()
+        unset(IS_RPI3)
+    endif ()
+    unset(UNAME_M)
+endif ()
+
+if (RPIVER EQUAL 1)
+    message (STATUS "Building for Raspberry Pi 1 / Zero")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=arm1176jzf-s \
+                        -mtune=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp")
+elseif (RPIVER EQUAL 2)
+    message (STATUS "Building for Raspberry Pi 2")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a7 -mtune=cortex-a7 \
+                        -mfloat-abi=hard -mfpu=neon-vfpv4 -D_HAVE_NEON_")
+elseif (RPIVER EQUAL 3)
+    message (STATUS "Building for Raspberry Pi 3")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a53 -mtune=cortex-a53 \
+                        -mfloat-abi=hard -mfpu=neon-vfpv4 -D_HAVE_NEON_")
+endif ()
+
 add_subdirectory (src)
 add_subdirectory (test)
 
