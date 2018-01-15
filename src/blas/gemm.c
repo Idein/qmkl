@@ -134,9 +134,9 @@ static void cblas_sgemm_RNN(
             h_acc += hi;
         }
     }
-    qmkl_cache_op_2(a, P, Q * 4, lda * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(b, Q, R * 4, ldb * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op_2_multiple(3, QMKL_CACHE_OP_CLEAN, a, P, Q * 4, lda * 4,
+                                QMKL_CACHE_OP_CLEAN, b, Q, R * 4, ldb * 4,
+                                QMKL_CACHE_OP_CLEAN, c, P, R * 4, ldc * 4);
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -151,9 +151,7 @@ static void cblas_sgemm_RNN(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
-    qmkl_cache_op_2(a, P, Q * 4, lda * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(b, Q, R * 4, ldb * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op_2(QMKL_CACHE_OP_INVALIDATE, c, P, R * 4, ldc * 4);
 }
 
 static void cblas_sgemm_RNT(
@@ -242,9 +240,9 @@ static void cblas_sgemm_RNT(
             h_acc += hi;
         }
     }
-    qmkl_cache_op_2(a, P, Q * 4, lda * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(b, R, Q * 4, ldb * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op_2_multiple(3, QMKL_CACHE_OP_CLEAN, a, P, Q * 4, lda * 4,
+                                QMKL_CACHE_OP_CLEAN, b, R, Q * 4, ldb * 4,
+                                QMKL_CACHE_OP_CLEAN, c, P, R * 4, ldc * 4);
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -259,9 +257,7 @@ static void cblas_sgemm_RNT(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
-    qmkl_cache_op_2(a, P, Q * 4, lda * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(b, R, Q * 4, ldb * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op_2(QMKL_CACHE_OP_INVALIDATE, c, P, R * 4, ldc * 4);
 }
 
 static void cblas_sgemm_RTN(
@@ -350,9 +346,9 @@ static void cblas_sgemm_RTN(
             h_acc += hi;
         }
     }
-    qmkl_cache_op_2(a, Q, P * 4, lda * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(b, Q, R * 4, ldb * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op_2_multiple(3, QMKL_CACHE_OP_CLEAN, a, Q, P * 4, lda * 4,
+                                QMKL_CACHE_OP_CLEAN, b, Q, R * 4, ldb * 4,
+                                QMKL_CACHE_OP_CLEAN, c, P, R * 4, ldc * 4);
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -367,9 +363,7 @@ static void cblas_sgemm_RTN(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
-    qmkl_cache_op_2(a, Q, P * 4, lda * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(b, Q, R * 4, ldb * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op_2(QMKL_CACHE_OP_INVALIDATE, c, P, R * 4, ldc * 4);
 }
 
 static void cblas_sgemm_RTT(
@@ -458,9 +452,9 @@ static void cblas_sgemm_RTT(
             h_acc += hi;
         }
     }
-    qmkl_cache_op_2(a, Q, P * 4, lda * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(b, R, Q * 4, ldb * 4, QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op_2_multiple(3, QMKL_CACHE_OP_CLEAN, a, Q, P * 4, lda * 4,
+                                QMKL_CACHE_OP_CLEAN, b, R, Q * 4, ldb * 4,
+                                QMKL_CACHE_OP_CLEAN, c, P, R * 4, ldc * 4);
     launch_qpu_code_mailbox(n_threads, 0, 5e3,
                             (unsigned*) unif_common_gpu +  0 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu +  1 * unif_len_1th, code_common_gpu,
@@ -475,9 +469,7 @@ static void cblas_sgemm_RTT(
                             (unsigned*) unif_common_gpu + 10 * unif_len_1th, code_common_gpu,
                             (unsigned*) unif_common_gpu + 11 * unif_len_1th, code_common_gpu
     );
-    qmkl_cache_op_2(a, Q, P * 4, lda * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(b, R, Q * 4, ldb * 4, QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op_2(c, P, R * 4, ldc * 4, QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op_2(QMKL_CACHE_OP_INVALIDATE, c, P, R * 4, ldc * 4);
 }
 
 static void cblas_sgemm_R(

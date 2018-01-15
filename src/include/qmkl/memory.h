@@ -32,11 +32,15 @@
     void unif_add_uint(const MKL_UINT u, MKL_UINT **p);
     void unif_add_float(const float f, MKL_UINT **p);
 
-    int qmkl_cache_op(const void *p, const size_t size,
-            const enum qmkl_cache_op op);
-    int qmkl_cache_op_2(const void *p, const size_t block_count,
-            const size_t block_size, const size_t stride,
-            const enum qmkl_cache_op op);
+    /* op0, user0, size0, ... */
+    int qmkl_cache_op_multiple(unsigned op_count, ...);
+    int qmkl_cache_op(const enum qmkl_cache_op op, void * const p,
+            const size_t size);
+    /* op0, user0, block_count0, block_size0, stride0, ... */
+    int qmkl_cache_op_2_multiple(unsigned op_count, ...);
+    int qmkl_cache_op_2(const enum qmkl_cache_op op, void * const p,
+            const size_t block_count, const size_t block_size,
+            const size_t stride);
 
 #define BUS_TO_PHYS(addr) ((addr) & ~0xc0000000)
 

@@ -60,9 +60,8 @@ void cblas_scopy(
 
     memcpy(code_common_cpu, code_scopy, sizeof(code_scopy));
 
-    qmkl_cache_op(x, n * sizeof(*x), QMKL_CACHE_OP_CLEAN);
-    qmkl_cache_op(y, n * sizeof(*y), QMKL_CACHE_OP_CLEAN);
+    qmkl_cache_op_multiple(2, QMKL_CACHE_OP_CLEAN, x, n * sizeof(*x),
+                              QMKL_CACHE_OP_CLEAN, y, n * sizeof(*y));
     launch_qpu_code_mailbox(1, 0, 5e3, unif_common_gpu, code_common_gpu);
-    qmkl_cache_op(x, n * sizeof(*x), QMKL_CACHE_OP_INVALIDATE);
-    qmkl_cache_op(y, n * sizeof(*y), QMKL_CACHE_OP_INVALIDATE);
+    qmkl_cache_op(QMKL_CACHE_OP_INVALIDATE, y, n * sizeof(*y));
 }

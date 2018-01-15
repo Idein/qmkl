@@ -13,8 +13,10 @@
 #include <interface/vcsm/user-vcsm.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -22,6 +24,8 @@
 
 #define ALIGN_UP(x, align) \
         (((((unsigned long) ((x))) + ((align)) - 1) & ~(((align)) - 1)))
+
+#define MAX_CACHE_OP_ENTRIES 8
 
 struct mem_allocated_list {
     size_t alloc_size;
@@ -192,46 +196,120 @@ void unif_add_float(const float f, MKL_UINT **p)
     unif_set_float((*p)++, f);
 }
 
-int qmkl_cache_op(const void *p, const size_t size, const enum qmkl_cache_op op)
+/* op0, user0, size0, op1, user1, size1, ... */
+int qmkl_cache_op_multiple(unsigned op_count, ...)
 {
-    return qmkl_cache_op_2(p, 1, size, 0, op);
-}
+    unsigned i;
+    va_list ap;
 
-int qmkl_cache_op_2(const void *p, const size_t block_count,
-        const size_t block_size, const size_t stride,
-        const enum qmkl_cache_op op)
-{
-    int err;
-    struct vcsm_user_clean_invalid2_s *s;
-    int mode;
+    va_start(ap, op_count);
+    for (; ; op_count -= MAX_CACHE_OP_ENTRIES) {
+        int err;
 
-    switch (op) {
-        case QMKL_CACHE_OP_INVALIDATE:
-            mode = 1;
+        uint8_t *buf[sizeof(struct vcsm_user_clean_invalid2_s) +
+                sizeof(struct vcsm_user_clean_invalid2_block_s) *
+                        MAX_CACHE_OP_ENTRIES];
+        struct vcsm_user_clean_invalid2_s *s =
+                (struct vcsm_user_clean_invalid2_s*) buf;
+
+        const unsigned count = MIN(op_count, MAX_CACHE_OP_ENTRIES);
+        s->op_count = count;
+
+        for (i = 0; i < count; i ++) {
+            const enum qmkl_cache_op op = va_arg(ap, enum qmkl_cache_op);
+            unsigned mode;
+
+            switch (op) {
+                case QMKL_CACHE_OP_INVALIDATE:
+                    mode = 1;
+                    break;
+                case QMKL_CACHE_OP_CLEAN:
+                    mode = 2;
+                    break;
+                default:
+                    error_fatal("Invalid op: %d\n", op);
+            }
+
+            s->s[i].invalidate_mode = mode;
+            s->s[i].block_count = 1;
+            s->s[i].start_address = va_arg(ap, void*);
+            s->s[i].block_size = va_arg(ap, size_t);
+            s->s[i].inter_block_stride = 0;
+        }
+
+        err = vcsm_clean_invalid2(s);
+        if (err)
+            error_fatal("Failed to sync cache: %d\n", err);
+
+        if (op_count < MAX_CACHE_OP_ENTRIES)
             break;
-        case QMKL_CACHE_OP_CLEAN:
-            mode = 2;
-            break;
-        default:
-            error_fatal("Invalid op: %d\n", op);
     }
-
-    s = malloc(sizeof(*s) + sizeof(*s->s) * 1);
-    if (s == NULL)
-        error_fatal("Failed to allocate for sync: %s\n", strerror(errno));
-
-    s->op_count = 1;
-    s->s[0].invalidate_mode = mode;
-    s->s[0].block_count = block_count;
-    s->s[0].start_address = (void*) p;
-    s->s[0].block_size = block_size;
-    s->s[0].inter_block_stride = stride;
-    err = vcsm_clean_invalid2(s);
-
-    free(s);
-
-    if (err)
-        error_fatal("Failed to sync cache: %d\n", err);
+    va_end(ap);
 
     return 0;
+}
+
+int qmkl_cache_op(const enum qmkl_cache_op op, void * const p,
+        const size_t size)
+{
+    return qmkl_cache_op_multiple(1, op, p, size);
+}
+
+/* op0, user0, block_count0, block_size0, stride0, ... */
+int qmkl_cache_op_2_multiple(unsigned op_count, ...)
+{
+    unsigned i;
+    va_list ap;
+
+    va_start(ap, op_count);
+    for (; ; op_count -= MAX_CACHE_OP_ENTRIES) {
+        int err;
+
+        uint8_t *buf[sizeof(struct vcsm_user_clean_invalid2_s) +
+                sizeof(struct vcsm_user_clean_invalid2_block_s) *
+                        MAX_CACHE_OP_ENTRIES];
+        struct vcsm_user_clean_invalid2_s *s =
+                (struct vcsm_user_clean_invalid2_s*) buf;
+
+        const unsigned count = MIN(op_count, MAX_CACHE_OP_ENTRIES);
+        s->op_count = count;
+
+        for (i = 0; i < count; i ++) {
+            const enum qmkl_cache_op op = va_arg(ap, enum qmkl_cache_op);
+            unsigned mode;
+
+            switch (op) {
+                case QMKL_CACHE_OP_INVALIDATE:
+                    mode = 1;
+                    break;
+                case QMKL_CACHE_OP_CLEAN:
+                    mode = 2;
+                    break;
+                default:
+                    error_fatal("Invalid op: %d\n", op);
+            }
+
+            s->s[i].invalidate_mode = mode;
+            s->s[i].start_address = va_arg(ap, void*);
+            s->s[i].block_count = va_arg(ap, size_t);
+            s->s[i].block_size = va_arg(ap, size_t);
+            s->s[i].inter_block_stride = va_arg(ap, size_t);
+        }
+
+        err = vcsm_clean_invalid2(s);
+        if (err)
+            error_fatal("Failed to sync cache: %d\n", err);
+
+        if (op_count < MAX_CACHE_OP_ENTRIES)
+            break;
+    }
+    va_end(ap);
+
+    return 0;
+}
+
+int qmkl_cache_op_2(const enum qmkl_cache_op op, void * const p,
+        const size_t block_count, const size_t block_size, const size_t stride)
+{
+    return qmkl_cache_op_2_multiple(1, op, p, block_count, block_size, stride);
 }
