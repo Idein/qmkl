@@ -14,9 +14,9 @@
 #include <sys/time.h>
 #include <omp.h>
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 #include <arm_neon.h>
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 static void mf_srandom()
 {
@@ -49,7 +49,7 @@ static void mf_scopy(const MKL_INT n, const float *x, float *y)
     }
 }
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 static void mf_scopy_neon(const MKL_INT n, const float *x, float *y)
 {
     int i;
@@ -90,32 +90,32 @@ static void mf_scopy_neon(const MKL_INT n, const float *x, float *y)
         vst1q_f32(y + i + 4 * 15, vx[15]);
     }
 }
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 int main()
 {
     const int n = 4096 * 1024;
     float *x, *y, *y_ref;
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     float *y_neon;
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     struct timeval start, end;
 
     x     = mkl_malloc(n * sizeof(*x),     4096);
     y     = mkl_malloc(n * sizeof(*y),     4096);
     y_ref = mkl_malloc(n * sizeof(*y_ref), 4096);
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     y_neon = mkl_malloc(n * sizeof(*y_neon), 4096);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
     mf_srandom();
     mf_init_random(x, 1, n);
     /* To detect insufficient copies... */
     mf_init_random(y, 1, n);
     mf_init_random(y_ref, 1, n);
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     mf_init_random(y_neon, 1, n);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
     printf("n = %d\n", n);
     printf("==== scopy example (y = x) ====\n");
@@ -142,7 +142,7 @@ int main()
         }
     }
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     printf("CPU with NEON (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
     mf_scopy_neon(n, x, y_neon);
@@ -160,7 +160,7 @@ int main()
     }
 
     mkl_free(y_neon);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     mkl_free(y_ref);
     mkl_free(y);
     mkl_free(x);
