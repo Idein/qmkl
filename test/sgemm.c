@@ -19,9 +19,9 @@
 #define DO_1FILL
 #endif
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 #include <arm_neon.h>
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 #ifdef DO_1FILL
 static void mf_init_constant(float *p, const int height, const int width, const float c)
@@ -131,7 +131,7 @@ static void mf_sgemm(float *A, float *B, float *C, const int P, const int Q, con
     }
 }
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 static void mf_sgemm_neon(float *A, float *B, float *C, const int P, const int Q, const int R, const float ALPHA, const float BETA)
 {
     int i, j, k;
@@ -259,7 +259,7 @@ static void mf_sgemm_neon(float *A, float *B, float *C, const int P, const int Q
         }
     }
 }
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 int main()
 {
@@ -267,9 +267,9 @@ int main()
     const unsigned Q = 363;
     const unsigned R = 3072;
     float *A, *A_ref, *B, *B_ref, *C, *C_ref;
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     float *C_neon;
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     float ALPHA;
     float BETA;
     struct timeval start, end;
@@ -297,10 +297,10 @@ int main()
     memcpy(A_ref, A, P * Q * (32 / 8));
     memcpy(B_ref, B, Q * R * (32 / 8));
     memcpy(C_ref, C, P * R * (32 / 8));
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     C_neon = malloc(P * R * (32 / 8));
     memcpy(C_neon, C, P * R * (32 / 8));
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
     printf("P = %d\n", P);
     printf("Q = %d\n", Q);
@@ -326,7 +326,7 @@ int main()
     printf("Minimum relative error: %g\n", mf_minimum_relative_error(C_ref, C, P, R));
     printf("Maximum relative error: %g\n", mf_maximum_relative_error(C_ref, C, P, R));
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     printf("CPU with NEON (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
     mf_sgemm_neon(A_ref, B_ref, C_neon, P, Q, R, ALPHA, BETA);
@@ -339,7 +339,7 @@ int main()
     printf("Maximum relative error: %g\n", mf_maximum_relative_error(C_ref, C_neon, P, R));
 
     free(C_neon);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     free(C_ref);
     free(B_ref);
     free(A_ref);

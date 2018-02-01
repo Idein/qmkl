@@ -73,11 +73,11 @@ if (RPIVER EQUAL 1)
 elseif (RPIVER EQUAL 2)
     message (STATUS "Building for Raspberry Pi 2")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a7 -mtune=cortex-a7 \
-                        -mfloat-abi=hard -mfpu=neon-vfpv4 -D_HAVE_NEON_")
+                        -mfloat-abi=hard -mfpu=neon-vfpv4")
 elseif (RPIVER EQUAL 3)
     message (STATUS "Building for Raspberry Pi 3")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a53 -mtune=cortex-a53 \
-                        -mfloat-abi=hard -mfpu=neon-vfpv4 -D_HAVE_NEON_")
+                        -mfloat-abi=hard -mfpu=neon-vfpv4")
 endif ()
 
 add_subdirectory (src)
