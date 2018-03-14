@@ -10,80 +10,50 @@
 #include "qmkl.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <interface/vcsm/user-vcsm.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
 
-static MKL_INT fd_mb = -1;
-static MKL_INT fd_dev_mem = -1;
-static MKL_LONG pagesize = 0;
+#define ALIGN_UP(x, align) \
+        (((((unsigned long) ((x))) + ((align)) - 1) & ~(((align)) - 1)))
+
+#define MAX_CACHE_OP_ENTRIES 8
 
 struct mem_allocated_list {
     size_t alloc_size;
     MKL_UINT handle;
     MKL_UINT ptr_gpu;
+    void *ptr_cpu_before_align;
     void *ptr_cpu;
     struct mem_allocated_list *next;
 } *mem_allocated_list_head = NULL;
 
 void memory_init()
 {
+    int ret;
+
     if (++called.memory != 1)
         return;
 
-    mailbox_init();
-    fd_mb = mailbox_open();
-
-    fd_dev_mem = open("/dev/mem", O_RDWR | O_SYNC);
-    if (fd_dev_mem == -1)
-        error_fatal("Failed to open /dev/mem: %s\n", strerror(errno));
-
-    pagesize = sysconf(_SC_PAGESIZE);
+    ret = vcsm_init();
+    if (ret)
+        error_fatal("Failed to initialize vcsm: %d\n", ret);
 }
 
 void memory_finalize()
 {
-    MKL_INT ret_int;
-
     if (--called.memory != 0)
         return;
 
-    ret_int = close(fd_dev_mem);
-    if (ret_int == -1)
-        error_fatal("Failed to close /dev/mem: %s\n", strerror(errno));
-    fd_dev_mem = -1;
-
-    mailbox_close(fd_mb);
-    mailbox_finalize();
-}
-
-void* map_on_cpu(MKL_UINT ptr_gpu, size_t alloc_size)
-{
-    void *ptr_cpu;
-
-    if (ptr_gpu % pagesize != 0)
-        error_fatal("GPU memory 0x%08x is not pagesize(%ld)-aligned\n", ptr_gpu, pagesize);
-
-    ptr_cpu = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_dev_mem, ptr_gpu);
-    if (ptr_cpu == MAP_FAILED)
-        error_fatal("Failed to map GPU memory 0x%08x\n", ptr_gpu);
-
-    return ptr_cpu;
-}
-
-void unmap_on_cpu(void *ptr_cpu, size_t alloc_size)
-{
-    MKL_INT ret_int;
-
-    ret_int = munmap(ptr_cpu, alloc_size);
-    if (ret_int != 0)
-        error_fatal("Failed to unmap CPU memory %p\n", ptr_cpu);
+    vcsm_exit();
 }
 
 static struct mem_allocated_list* mem_allocated_list_alloc()
@@ -102,28 +72,35 @@ static void mem_allocated_list_free(struct mem_allocated_list *p)
     free(p);
 }
 
-/*
- * The original mkl_malloc returns NULL on failure,
- * but we exit with error in such a situation
- * because we identify GPU handle and memory
- * according to ptr_cpu.
- */
-void* mkl_malloc(size_t alloc_size, int alignment)
+void* mkl_malloc_cache(size_t alloc_size, int alignment,
+        const _Bool use_cpu_cache)
 {
     struct mem_allocated_list *cur = NULL;
+    VCSM_CACHE_TYPE_T cache_type;
     MKL_UINT handle;
     MKL_UINT ptr_gpu;
+    void *ptr_cpu_before_align;
     void *ptr_cpu;
 
-    handle = mailbox_mem_alloc(fd_mb, alloc_size, alignment, MEM_FLAG_DIRECT);
-    if (!handle)
-        error_fatal("Failed to allocate %zu bytes of memory on GPU\n", alloc_size);
+    if (use_cpu_cache)
+        cache_type = VCSM_CACHE_TYPE_HOST;
+    else
+        cache_type = VCSM_CACHE_TYPE_NONE;
 
-    ptr_gpu = mailbox_mem_lock(fd_mb, handle);
-    if (ptr_gpu == 0)
+    handle = vcsm_malloc_cache(alloc_size + alignment - 1, cache_type, "qmkl");
+    if (!handle)
+        error_fatal("Failed to allocate %zu bytes of memory on GPU\n",
+                alloc_size + alignment - 1);
+
+    ptr_cpu_before_align = vcsm_lock(handle);
+    if (ptr_cpu_before_align == NULL)
         error_fatal("Failed to lock %zu bytes of memory on GPU\n", alloc_size);
 
-    ptr_cpu = map_on_cpu(BUS_TO_PHYS(ptr_gpu), alloc_size);
+    ptr_cpu = (void*) ALIGN_UP(ptr_cpu_before_align, alignment);
+
+    ptr_gpu = vcsm_vc_addr_from_hdl(handle);
+    if (ptr_gpu == 0)
+        error_fatal("Failed to get bus address\n");
 
     if (mem_allocated_list_head == NULL) {
         cur = mem_allocated_list_head = mem_allocated_list_alloc();
@@ -137,10 +114,22 @@ void* mkl_malloc(size_t alloc_size, int alignment)
     cur->alloc_size = alloc_size;
     cur->handle = handle;
     cur->ptr_gpu = ptr_gpu;
+    cur->ptr_cpu_before_align = ptr_cpu_before_align;
     cur->ptr_cpu = ptr_cpu;
     cur->next = NULL;
 
     return ptr_cpu;
+}
+
+/*
+ * The original mkl_malloc returns NULL on failure,
+ * but we exit with error in such a situation
+ * because we identify GPU handle and memory
+ * according to ptr_cpu.
+ */
+void* mkl_malloc(size_t alloc_size, int alignment)
+{
+    return mkl_malloc_cache(alloc_size, alignment, !0);
 }
 
 void mkl_free(void *a_ptr)
@@ -149,21 +138,16 @@ void mkl_free(void *a_ptr)
 
     while (cur != NULL) {
         if (cur->ptr_cpu == a_ptr) {
-            size_t alloc_size = cur->alloc_size;
             MKL_UINT handle = cur->handle;
             MKL_UINT ptr_gpu = cur->ptr_gpu;
-            MKL_UINT *ptr_cpu = cur->ptr_cpu;
-            MKL_UINT ret_uint;
+            MKL_UINT *ptr_cpu_before_align = cur->ptr_cpu_before_align;
+            MKL_INT ret_int;
 
-            unmap_on_cpu(ptr_cpu, alloc_size);
-
-            ret_uint = mailbox_mem_unlock(fd_mb, ptr_gpu);
-            if (ret_uint != 0)
+            ret_int = vcsm_unlock_ptr(ptr_cpu_before_align);
+            if (ret_int != 0)
                 error_fatal("Failed to unlock GPU memory 0x%08x\n", ptr_gpu);
 
-            ret_uint = mailbox_mem_free(fd_mb, handle);
-            if (ret_uint != 0)
-                error_fatal("Failed to free GPU handle %d\n", handle);
+            vcsm_free(handle);
 
             if (prev == NULL) /* This node is the head. */
                 mem_allocated_list_head = mem_allocated_list_head->next;
@@ -210,4 +194,122 @@ void unif_add_uint(const MKL_UINT u, MKL_UINT **p)
 void unif_add_float(const float f, MKL_UINT **p)
 {
     unif_set_float((*p)++, f);
+}
+
+/* op0, user0, size0, op1, user1, size1, ... */
+int qmkl_cache_op_multiple(unsigned op_count, ...)
+{
+    unsigned i;
+    va_list ap;
+
+    va_start(ap, op_count);
+    for (; ; op_count -= MAX_CACHE_OP_ENTRIES) {
+        int err;
+
+        uint8_t *buf[sizeof(struct vcsm_user_clean_invalid2_s) +
+                sizeof(struct vcsm_user_clean_invalid2_block_s) *
+                        MAX_CACHE_OP_ENTRIES];
+        struct vcsm_user_clean_invalid2_s *s =
+                (struct vcsm_user_clean_invalid2_s*) buf;
+
+        const unsigned count = MIN(op_count, MAX_CACHE_OP_ENTRIES);
+        s->op_count = count;
+
+        for (i = 0; i < count; i ++) {
+            const enum qmkl_cache_op op = va_arg(ap, enum qmkl_cache_op);
+            unsigned mode;
+
+            switch (op) {
+                case QMKL_CACHE_OP_INVALIDATE:
+                    mode = 1;
+                    break;
+                case QMKL_CACHE_OP_CLEAN:
+                    mode = 2;
+                    break;
+                default:
+                    error_fatal("Invalid op: %d\n", op);
+            }
+
+            s->s[i].invalidate_mode = mode;
+            s->s[i].block_count = 1;
+            s->s[i].start_address = va_arg(ap, void*);
+            s->s[i].block_size = va_arg(ap, size_t);
+            s->s[i].inter_block_stride = 0;
+        }
+
+        err = vcsm_clean_invalid2(s);
+        if (err)
+            error_fatal("Failed to sync cache: %d\n", err);
+
+        if (op_count < MAX_CACHE_OP_ENTRIES)
+            break;
+    }
+    va_end(ap);
+
+    return 0;
+}
+
+int qmkl_cache_op(const enum qmkl_cache_op op, void * const p,
+        const size_t size)
+{
+    return qmkl_cache_op_multiple(1, op, p, size);
+}
+
+/* op0, user0, block_count0, block_size0, stride0, ... */
+int qmkl_cache_op_2_multiple(unsigned op_count, ...)
+{
+    unsigned i;
+    va_list ap;
+
+    va_start(ap, op_count);
+    for (; ; op_count -= MAX_CACHE_OP_ENTRIES) {
+        int err;
+
+        uint8_t *buf[sizeof(struct vcsm_user_clean_invalid2_s) +
+                sizeof(struct vcsm_user_clean_invalid2_block_s) *
+                        MAX_CACHE_OP_ENTRIES];
+        struct vcsm_user_clean_invalid2_s *s =
+                (struct vcsm_user_clean_invalid2_s*) buf;
+
+        const unsigned count = MIN(op_count, MAX_CACHE_OP_ENTRIES);
+        s->op_count = count;
+
+        for (i = 0; i < count; i ++) {
+            const enum qmkl_cache_op op = va_arg(ap, enum qmkl_cache_op);
+            unsigned mode;
+
+            switch (op) {
+                case QMKL_CACHE_OP_INVALIDATE:
+                    mode = 1;
+                    break;
+                case QMKL_CACHE_OP_CLEAN:
+                    mode = 2;
+                    break;
+                default:
+                    error_fatal("Invalid op: %d\n", op);
+            }
+
+            s->s[i].invalidate_mode = mode;
+            s->s[i].start_address = va_arg(ap, void*);
+            s->s[i].block_count = va_arg(ap, size_t);
+            s->s[i].block_size = va_arg(ap, size_t);
+            s->s[i].inter_block_stride = va_arg(ap, size_t);
+        }
+
+        err = vcsm_clean_invalid2(s);
+        if (err)
+            error_fatal("Failed to sync cache: %d\n", err);
+
+        if (op_count < MAX_CACHE_OP_ENTRIES)
+            break;
+    }
+    va_end(ap);
+
+    return 0;
+}
+
+int qmkl_cache_op_2(const enum qmkl_cache_op op, void * const p,
+        const size_t block_count, const size_t block_size, const size_t stride)
+{
+    return qmkl_cache_op_2_multiple(1, op, p, block_count, block_size, stride);
 }

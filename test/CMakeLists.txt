@@ -1,21 +1,10 @@
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -Wall -Wextra")
+set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -W -Wall -Wextra \
+                    ${OpenMP_C_FLAGS} ${VCSM_CFLAGS}")
 
 include_directories (
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/include
     ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-
-execute_process (
-    COMMAND uname -m
-    OUTPUT_VARIABLE UNAME_M
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-# If Raspberry Pi 2 or 3...
-if (${UNAME_M} STREQUAL "armv7l")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfloat-abi=hard -mfpu=neon-vfpv4 -march=armv7-a -D_HAVE_NEON_")
-endif ()
 
 add_executable (
     sgemm
@@ -23,7 +12,7 @@ add_executable (
 )
 target_link_libraries (
     sgemm LINK_PUBLIC
-    m qmkl
+    m qmkl ${VCSM_LDFLAGS}
 )
 
 add_executable (
@@ -32,7 +21,7 @@ add_executable (
 )
 target_link_libraries (
     scopy LINK_PUBLIC
-    qmkl
+    qmkl ${VCSM_LDFLAGS}
 )
 
 add_executable (
@@ -41,9 +30,17 @@ add_executable (
 )
 target_link_libraries (
     vsAbs LINK_PUBLIC
-    qmkl
+    qmkl ${VCSM_LDFLAGS}
 )
 
+add_executable (
+    vcsm
+    vcsm.c
+)
+target_link_libraries (
+    vcsm LINK_PUBLIC
+    qmkl ${VCSM_LDFLAGS}
+)
 
 include(FindPNG)
 
@@ -61,7 +58,7 @@ add_executable (
 add_dependencies(sgemm_spec qmkl-static)
 target_link_libraries (
     sgemm_spec
-    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${PNG_LIBRARIES} ${VCSM_LDFLAGS}
 )
 add_executable (
     memory_bench
@@ -70,7 +67,7 @@ add_executable (
 add_dependencies(memory_bench qmkl-static)
 target_link_libraries (
     memory_bench
-    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES}
+    LINK_PUBLIC ${CMAKE_BINARY_DIR}/src/libqmkl.a ${CUNIT_LIBRARIES} ${VCSM_LDFLAGS}
 )
 endif(CUNIT_FOUND)
 

@@ -15,9 +15,9 @@
 #include <sys/time.h>
 #include <omp.h>
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 #include <arm_neon.h>
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 static void mf_srandom()
 {
@@ -46,7 +46,7 @@ static void mf_vsAbs(const MKL_INT n, const float *a, float *y)
         y[i] = fabsf(a[i]);
 }
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
 static void mf_vsAbs_neon(const MKL_INT n, const float *a, float *y)
 {
     int i;
@@ -104,23 +104,23 @@ static void mf_vsAbs_neon(const MKL_INT n, const float *a, float *y)
         vst1q_f32(y + i + 4 * 15, vy[15]);
     }
 }
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
 int main()
 {
     const int n = 4096 * 512 * 3;
     float *a, *y, *y_ref;
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     float *y_neon;
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     struct timeval start, end;
 
     a     = mkl_malloc(n * sizeof(*a),     4096);
     y     = mkl_malloc(n * sizeof(*y),     4096);
     y_ref = mkl_malloc(n * sizeof(*y_ref), 4096);
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     y_neon = mkl_malloc(n * sizeof(*y_neon), 4096);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
 
     mf_srandom();
     mf_init_random(a, 1, n);
@@ -150,7 +150,7 @@ int main()
         }
     }
 
-#ifdef _HAVE_NEON_
+#ifdef __ARM_NEON
     printf("CPU with NEON (%d threads): ", omp_get_max_threads()); fflush(stdout);
     gettimeofday(&start, NULL);
     mf_vsAbs_neon(n, a, y_neon);
@@ -168,7 +168,7 @@ int main()
     }
 
     mkl_free(y_neon);
-#endif /* _HAVE_NEON_ */
+#endif /* __ARM_NEON */
     mkl_free(y_ref);
     mkl_free(y);
     mkl_free(a);

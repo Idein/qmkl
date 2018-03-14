@@ -1,8 +1,8 @@
 # QMKL
 
 
-QMKL is **Math Kernel Library for VideoCore IV QPU**. QMKL is **compatible with
-Intel MKL** except for double precision etc.
+QMKL is a **Math Kernel Library for VideoCore IV QPU**. QMKL is **compatible
+with Intel MKL** except for double precision etc.
 
 We, Idein Inc., did some object recognition demos (GoogLeNet etc.) on Raspberry
 Pi. The demos run on QPU with QMKL and our private libraries which are highly
@@ -16,6 +16,13 @@ optimized for neural networks. There are movies of that:
 You need to install [qasm2](https://github.com/Terminus-IMRC/qpu-assembler2)
 and [qbin2hex](https://github.com/Terminus-IMRC/qpu-bin-to-hex) to compile
 this library. Just clone them and do `make && sudo make install`.
+
+In addition, make sure Linux kernel 4.9.79 or above is running on your Pi. e.g.:
+
+```
+$ uname -r
+4.9.80-v7+
+```
 
 
 ## Installation
