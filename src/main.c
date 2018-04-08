@@ -16,7 +16,6 @@
 
 struct called called = {
     .main = 0,
-    .mailbox = 0,
     .memory = 0,
     .launch_qpu_code = 0,
     .blas_gemm = 0,
@@ -34,15 +33,12 @@ void qmkl_init()
     if (++called.main != 1)
         return;
 
-    mailbox_init();
     memory_init();
     launch_qpu_code_init();
     blas_gemm_init();
     blas_copy_init();
     vm_abs_init();
 
-    if (called.mailbox <= 0)
-        error_fatal("called.mailbox is 0 or negative: %d\n", called.mailbox);
     if (called.memory <= 0)
         error_fatal("called.memory is 0 or negative: %d\n", called.memory);
     if (called.launch_qpu_code <= 0)
@@ -77,7 +73,6 @@ void qmkl_finalize()
     blas_gemm_finalize();
     launch_qpu_code_finalize();
     memory_finalize();
-    mailbox_finalize();
 
     if (called.vm_abs != 0)
         error_fatal("called.vm_abs is not 0: %d\n", called.vm_abs);
@@ -89,8 +84,6 @@ void qmkl_finalize()
         error_fatal("called.launch_qpu_code is not 0: %d\n", called.launch_qpu_code);
     if (called.memory != 0)
         error_fatal("called.memory is not 0: %d\n", called.memory);
-    if (called.mailbox != 0)
-        error_fatal("called.mailbox is not 0: %d\n", called.mailbox);
 }
 
 void unif_and_code_size_req(const size_t unif_size_req, const size_t code_size_req)

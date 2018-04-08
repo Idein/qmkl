@@ -12,7 +12,6 @@ add_subdirectory (vm)
 
 list (APPEND qmkl_SOURCES
     main.c
-    mailbox.c
     memory.c
     launch_qpu_code.c
     error.c
@@ -53,7 +52,6 @@ install (
 install (
     FILES
         include/qmkl/types.h
-        include/qmkl/mailbox.h
         include/qmkl/raspberrypi-firmware.h
         include/qmkl/memory.h
         include/qmkl/launch_qpu_code.h

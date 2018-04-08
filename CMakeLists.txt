@@ -44,6 +44,8 @@ if (NOT VCSM_FOUND)
     endif ()
 endif ()
 
+pkg_check_modules(MAILBOX REQUIRED libmailbox>=2.0.0)
+
 if (DEFINED ENV{RPIVER})
     if     ("$ENV{RPIVER}" STREQUAL "1")
         set (RPIVER 1)

@@ -10,6 +10,7 @@
 #include "qmkl.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <mailbox.h>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -21,26 +22,42 @@ static uint32_t ml_control_gpu = 0;
 
 void launch_qpu_code_init()
 {
+    int ret;
+
     if (++called.launch_qpu_code != 1)
         return;
 
     memory_init();
-    mailbox_init();
+
     fd_mb = mailbox_open();
-    mailbox_qpu_enable(fd_mb, 1);
+    if (fd_mb == -1)
+        error_fatal("Failed to open Mailbox\n");
+
+    ret = mailbox_qpu_enable(fd_mb, 1);
+    if (ret)
+        error_fatal("Failed to enable QPU\n");
+
     ml_control_cpu = mkl_malloc_cache(MAX_QPUS * 2 * (32 / 8), 4096, 0);
     ml_control_gpu = get_ptr_gpu_from_ptr_cpu(ml_control_cpu);
 }
 
 void launch_qpu_code_finalize()
 {
+    int ret;
+
     if (--called.launch_qpu_code != 0)
         return;
 
     mkl_free(ml_control_cpu);
-    mailbox_qpu_enable(fd_mb, 0);
-    mailbox_close(fd_mb);
-    mailbox_finalize();
+
+    ret = mailbox_qpu_enable(fd_mb, 0);
+    if (ret)
+        error_fatal("Failed to disable QPU\n");
+
+    ret = mailbox_close(fd_mb);
+    if (ret)
+        error_fatal("Failed to close Mailbox\n");
+
     memory_finalize();
 }
 
