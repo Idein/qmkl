@@ -35,6 +35,13 @@ $ make
 $ sudo make install
 ```
 
+You can also create Debian package and install it:
+
+```
+$ make package
+$ sudo dpkg -i qmkl-x.y.x-system.deb
+```
+
 
 ## Running tests
 
