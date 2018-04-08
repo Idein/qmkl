@@ -2,6 +2,18 @@ cmake_minimum_required (VERSION 3.0)
 
 project (qmkl)
 
+set(CPACK_GENERATOR "DEB")
+set(CPACK_PACKAGE_CONTACT "Sugizaki Yukimasa <ysugi@idein.jp>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Math Kernel Library for VideoCore IV QPU")
+
+# See https://semver.org/
+set(CPACK_PACKAGE_VERSION_MAJOR 0)
+set(CPACK_PACKAGE_VERSION_MINOR 0)
+set(CPACK_PACKAGE_VERSION_PATCH 1)
+
+set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+include(CPack)
+
 find_package(PkgConfig)
 find_package(OpenMP)
 
@@ -95,3 +107,7 @@ add_custom_target(
     DEPENDS sgemm_spec
 )
 endif(CUNIT_FOUND)
+
+configure_file(qmkl.pc.in qmkl.pc @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/qmkl.pc"
+        DESTINATION lib/pkgconfig)

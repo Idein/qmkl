@@ -1,0 +1,10 @@
+prefix=@CPACK_PACKAGING_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: @CPACK_PACKAGE_NAME@
+Description: @CPACK_PACKAGE_DESCRIPTION_SUMMARY@
+Version: @CPACK_PACKAGE_VERSION@
+Requires: vcsm
+Cflags: -I${includedir}
+Libs: -L${libdir} -lqmkl
