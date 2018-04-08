@@ -55,27 +55,8 @@ if (DEFINED ENV{RPIVER})
         message (FATAL_ERROR "Invalid RPIVER specified: $ENV{RPIVER}")
     endif ()
 else ()
-    execute_process (
-        COMMAND uname -m
-        OUTPUT_VARIABLE UNAME_M
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if (UNAME_M STREQUAL "armv6l")
-        set (RPIVER 1)
-    else ()
-        if (NOT EXISTS /proc/cpuinfo)
-            message (FATAL_ERROR "/proc is not mounted")
-        endif ()
-        file (STRINGS /proc/cpuinfo IS_RPI3
-                      REGEX "^Features[ \t]*:.*[ \t]*crc32[ \t]*$")
-        if (IS_RPI3)
-            set (RPIVER 3)
-        else ()
-            set (RPIVER 2)
-        endif ()
-        unset(IS_RPI3)
-    endif ()
-    unset(UNAME_M)
+    message(WARNING "RPIVER is not specified; using default: 1")
+    set (RPIVER 1)
 endif ()
 
 if (RPIVER EQUAL 1)
