@@ -11,6 +11,7 @@
 #include "local/common.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <rpimemmgr.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,8 +61,8 @@ void cblas_scopy(
 
     memcpy(code_common_cpu, code_scopy, sizeof(code_scopy));
 
-    qmkl_cache_op_multiple(2, QMKL_CACHE_OP_CLEAN, x, n * sizeof(*x),
-                              QMKL_CACHE_OP_CLEAN, y, n * sizeof(*y));
+    rpimemmgr_cache_op_multiple(2, QMKL_CACHE_OP_CLEAN, x, n * sizeof(*x),
+                                   QMKL_CACHE_OP_CLEAN, y, n * sizeof(*y));
     launch_qpu_code_mailbox(1, 0, 5e3, unif_common_gpu, code_common_gpu);
-    qmkl_cache_op(QMKL_CACHE_OP_INVALIDATE, y, n * sizeof(*y));
+    rpimemmgr_cache_op(QMKL_CACHE_OP_INVALIDATE, y, n * sizeof(*y));
 }

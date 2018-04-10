@@ -11,6 +11,7 @@
 #include "local/common.h"
 #include "local/called.h"
 #include "local/error.h"
+#include <rpimemmgr.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,8 +52,8 @@ void vsAbs(MKL_INT n, const float *a, float *y)
 
     memcpy(code_common_cpu, code_sabs, sizeof(code_sabs));
 
-    qmkl_cache_op_multiple(2, QMKL_CACHE_OP_CLEAN, a, n * sizeof(*a),
-                              QMKL_CACHE_OP_CLEAN, y, n * sizeof(*y));
+    rpimemmgr_cache_op_multiple(2, QMKL_CACHE_OP_CLEAN, a, n * sizeof(*a),
+                                   QMKL_CACHE_OP_CLEAN, y, n * sizeof(*y));
     launch_qpu_code_mailbox(1, 0, 5e3, unif_common_gpu, code_common_gpu);
-    qmkl_cache_op(QMKL_CACHE_OP_INVALIDATE, y, n * sizeof(*y));
+    rpimemmgr_cache_op(QMKL_CACHE_OP_INVALIDATE, y, n * sizeof(*y));
 }

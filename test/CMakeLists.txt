@@ -1,6 +1,8 @@
-set(QMKL_INCLUDE_DIRS ${VCSM_INCLUDE_DIRS} ${MAILBOX_INCLUDE_DIRS})
-set(QMKL_CFLAGS_OTHER ${VCSM_CFLAGS_OTHER} ${MAILBOX_CFLAGS_OTHER})
-set(QMKL_LDFLAGS -lm ${VCSM_LDFLAGS} ${MAILBOX_LDFLAGS})
+set(QMKL_INCLUDE_DIRS ${VCSM_INCLUDE_DIRS} ${MAILBOX_INCLUDE_DIRS}
+                      ${RPIMEMMGR_INCLUDE_DIRS})
+set(QMKL_CFLAGS_OTHER ${VCSM_CFLAGS_OTHER} ${MAILBOX_CFLAGS_OTHER}
+                      ${RPIMEMMGR_CFLAGS_OTHER})
+set(QMKL_LDFLAGS -lm ${VCSM_LDFLAGS} ${MAILBOX_LDFLAGS} ${RPIMEMMGR_LDFLAGS})
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pipe -O2 -g -W -Wall -Wextra \
                    ${OpenMP_C_FLAGS}")
@@ -22,10 +24,6 @@ target_link_libraries(scopy qmkl "${QMKL_LDFLAGS}")
 add_executable(vsAbs vsAbs.c)
 target_compile_options(vsAbs PRIVATE "${QMKL_CFLAGS_OTHER}")
 target_link_libraries(vsAbs qmkl "${QMKL_LDFLAGS}")
-
-add_executable(vcsm vcsm.c)
-target_compile_options(vcsm PRIVATE ${QMKL_CFLAGS_OTHER})
-target_link_libraries(vcsm qmkl ${QMKL_LDFLAGS})
 
 include(FindPNG)
 

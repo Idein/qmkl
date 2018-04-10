@@ -13,9 +13,12 @@ optimized for neural networks. There are movies of that:
 
 ## Requirements
 
-You need to install [qasm2](https://github.com/Terminus-IMRC/qpu-assembler2)
-and [qbin2hex](https://github.com/Terminus-IMRC/qpu-bin-to-hex) to compile
-this library. Just clone them and do `make && sudo make install`.
+You need to install:
+
+- [qasm2](https://github.com/Terminus-IMRC/qpu-assembler2)
+- [qbin2hex](https://github.com/Terminus-IMRC/qpu-bin-to-hex)
+- [mailbox](https://github.com/Terminus-IMRC/mailbox)
+- [librpimemmgr](https://github.com/Idein/librpimemmgr)
 
 In addition, make sure Linux kernel 4.9.79 or above is running on your Pi. e.g.:
 
@@ -35,7 +38,7 @@ $ make
 $ sudo make install
 ```
 
-You can also create Debian package and install it:
+Or you can create Debian package and install it:
 
 ```
 $ make package
@@ -46,7 +49,8 @@ $ sudo dpkg -i qmkl-x.y.x-system.deb
 ## Running tests
 
 ```
-$ sudo test/sgemm
-$ sudo test/scopy
-$ sudo test/vsAbs
+$ test/sgemm
+$ test/scopy
+$ test/vsAbs
+$ test/sgemm_spec
 ```

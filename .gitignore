@@ -7,7 +7,6 @@ test/memory_bench
 test/scopy
 test/sgemm
 test/sgemm_spec
-test/vcsm
 test/vsAbs
 
 qmkl.pc
