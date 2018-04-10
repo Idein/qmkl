@@ -52,7 +52,6 @@ install (
 install (
     FILES
         include/qmkl/types.h
-        include/qmkl/raspberrypi-firmware.h
         include/qmkl/memory.h
         include/qmkl/launch_qpu_code.h
         include/qmkl/blas.h
