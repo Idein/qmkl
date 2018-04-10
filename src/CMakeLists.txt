@@ -1,5 +1,6 @@
 include (../cmake/qasm2m4_dep_on_c.cmake)
 include (../cmake/qbin_dep_on_c.cmake)
+include (../cmake/c_dep_on_qhex_from_py.cmake)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -pipe -O2 -g -W -Wall -Wextra \
                     ${VCSM_CFLAGS}")
 

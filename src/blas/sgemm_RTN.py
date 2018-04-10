@@ -6,7 +6,7 @@ import time
 import random
 # from PIL import Image
 
-from videocore.assembler import qpu, assemble, print_qbin
+from videocore.assembler import qpu, assemble, print_qbin, print_qhex
 from videocore.driver import Driver
 
 def mask(*idxs):
@@ -1361,7 +1361,7 @@ def main():
                 float(np.max(np.abs((R - C) / R)))))
 
 if __name__ == '__main__':
-    if sys.argv[1] == 'qbin':
-        print_qbin(sgemm_gpu_code)
-        exit(0)
-    main()
+    if len(sys.argv) >= 2:
+        {'qbin':print_qbin, 'qhex':print_qhex}[sys.argv[1]](sgemm_gpu_code)
+    else:
+        main()

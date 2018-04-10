@@ -37,7 +37,13 @@ $ make
 $ sudo make install
 ```
 
-Or you can create Debian package and install it:
+If you want to use a specific version of Python, do:
+
+```
+$ cmake -DPYTHON_EXECUTABLE=/path/to/python
+```
+
+You can create Debian package and install it:
 
 ```
 $ make package

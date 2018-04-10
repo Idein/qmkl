@@ -32,6 +32,11 @@ if (NOT M4)
     message (FATAL_ERROR "m4 not found.")
 endif ()
 
+find_package(PythonInterp)
+if (NOT PYTHONINTERP_FOUND)
+    message (FATAL_ERROR "Python is required to assemble QPU codes")
+endif ()
+
 pkg_check_modules(VCSM vcsm)
 if (NOT VCSM_FOUND)
     message(STATUS "Adding /opt/vc/lib/pkgconfig to PKG_CONFIG_PATH")
