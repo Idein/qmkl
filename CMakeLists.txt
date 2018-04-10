@@ -47,11 +47,11 @@ endif ()
 pkg_check_modules(MAILBOX REQUIRED libmailbox>=2.0.0)
 
 # librpimemmgr needs bcm_host and vcsm, which may be in /opt/vc...
-pkg_check_modules(RPIMEMMGR librpimemmgr>=1.0.0)
+pkg_check_modules(RPIMEMMGR librpimemmgr>=2.0.1)
 if (NOT RPIMEMMGR_FOUND)
     message(STATUS "Adding /opt/vc/lib/pkgconfig to PKG_CONFIG_PATH")
     set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/opt/vc/lib/pkgconfig")
-    pkg_check_modules(RPIMEMMGR librpimemmgr>=1.0.0)
+    pkg_check_modules(RPIMEMMGR librpimemmgr>=2.0.1)
     if (NOT RPIMEMMGR_FOUND)
         message (FATAL_ERROR "librpimemmgr not found even in /opt/vc/lib. "
                              "Building on non-RPi host? "
