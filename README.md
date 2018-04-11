@@ -14,6 +14,7 @@ optimized for neural networks. Please check out our video on [YouTube](https://w
 
 You need to install:
 
+- [py-videocore](https://github.com/nineties/py-videocore)
 - [qasm2](https://github.com/Terminus-IMRC/qpu-assembler2)
 - [qbin2hex](https://github.com/Terminus-IMRC/qpu-bin-to-hex)
 - [mailbox](https://github.com/Terminus-IMRC/mailbox)
