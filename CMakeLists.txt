@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.10)
 
 project (qmkl)
 
@@ -79,7 +79,11 @@ else ()
     set (RPIVER 1)
 endif ()
 
-if (RPIVER EQUAL 1)
+if (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+    # -mfloat-abi/-mfpu are 32-bit ARM options; NEON is mandatory on AArch64.
+    message (STATUS "Building for AArch64 (Raspberry Pi 2 v1.2 / 3)")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a53 -mtune=cortex-a53")
+elseif (RPIVER EQUAL 1)
     message (STATUS "Building for Raspberry Pi 1 / Zero")
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=arm1176jzf-s \
                         -mtune=arm1176jzf-s -mfloat-abi=hard -mfpu=vfp")
