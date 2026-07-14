@@ -12,7 +12,7 @@
 
 #include "qmkl.h"
 
-    void (*exit_handler)(int why);
+    extern void (*exit_handler)(int why);
     void xerbla_local_core(const int info, const char *fmt, ...);
 
 #define xerbla_local(info) xerbla_local_core(info, "%s:%d (%s)", __FILE__, __LINE__, __func__)
